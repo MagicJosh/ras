@@ -1,0 +1,18 @@
+{
+  "name": "magicjosh",
+  "owner": {
+    "name": "MagicJosh"
+  },
+  "description": "MagicJosh plugin marketplace. Hosts ras (refined agent skills), a plan-first coding workflow for Claude Code.",
+  "plugins": [
+    {
+      "name": "ras",
+      "source": "./",
+      "description": "Plan-first coding: a spec you approve, a hook that blocks edits until you do, and 10 small skills to build, finalize, diagnose and review.",
+      "version": "5.0.0",
+      "author": {
+        "name": "MagicJosh"
+      }
+    }
+  ]
+}

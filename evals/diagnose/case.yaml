@@ -1,0 +1,18 @@
+schema_version: "1.1"
+name: diagnose
+description: A test that fails only in the full run loads diagnose, and the answer names the cause.
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: 'python3 test_cart.py fails on test_two, but test_two passes when I run it alone. I do not know why. Find the cause.'
+  max_turns: 25
+  allowed_tools: [Read, Glob, Grep, Skill, Bash]
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"ras:diagnose"'
+  - name: names-cause
+    type: regex
+    pattern: 'mutable default|default (argument|parameter|value|list)|cart=\[\]'
+    flags: i

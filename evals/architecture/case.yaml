@@ -1,0 +1,14 @@
+schema_version: "1.1"
+name: architecture
+description: A monolith question loads architecture.
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: 'This app will grow a lot. Should it stay a monolith or become a modular monolith? Weigh the trade-offs, do not change code.'
+  max_turns: 25
+  allowed_tools: [Read, Glob, Grep, Skill]
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"ras:architecture"'

@@ -1,0 +1,21 @@
+---
+name: which
+description: Use when the user types /which to ask which ras skill fits a task. Answers with one or two skills, their order, and one line of reason each.
+disable-model-invocation: true
+---
+
+# Which
+
+| Skill | Use when | Example request |
+|---|---|---|
+| `spec` | Before any file change: write the spec, get approval | "Fix the login timeout" |
+| `build` | An approved spec exists and you implement it | "Spec approved, go ahead" |
+| `finalize` | The work is done: defects, cuts, fresh checks, report | "Are we done?" |
+| `diagnose` | The cause of a failure is unknown | "The export crashes, I do not know why" |
+| `architecture` | Choose a style, weigh trade-offs, write an ADR | "Monolith or modules for this app?" |
+| `distributed-architecture` | Split a system: service size, data ownership, transactions | "Should billing become its own service?" |
+| `deep-review` | Strict maintainability review of existing messy code | "Run a deep review of this module" |
+| `security-check` | A change touches auth, secrets, permissions, deletes or production | "Add an admin delete endpoint" |
+| `rules` | Install the ponytail coding rules for every session. User call only | "/rules" |
+
+Rule: answer with one or two skills and their order. Give one line of reason for each. Then stop. Make no edits.

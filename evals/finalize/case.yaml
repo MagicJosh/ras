@@ -1,0 +1,21 @@
+schema_version: "1.1"
+name: finalize
+description: Done work loads finalize, runs the test and archives the spec.
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: 'I changed calc.py as the spec says. The work is done, wrap it up.'
+  max_turns: 30
+  allowed_tools: [Read, Glob, Grep, Skill, Write, Edit, Bash]
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"ras:finalize"'
+  - name: test-ran
+    type: tool_used
+    tool: Bash
+    input_match: 'test_calc\.py'
+  - name: spec-archived
+    type: file_exists
+    path: specs/2*.md

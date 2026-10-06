@@ -1,0 +1,27 @@
+schema_version: "1.1"
+name: spec-first
+description: A change request loads spec, writes specs/current.md and stops before it edits app.py.
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: 'Add a --verbose flag to app.py that prints each step.'
+  max_turns: 25
+  allowed_tools: [Read, Glob, Grep, Skill, Write, Edit, AskUserQuestion]
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"ras:spec"'
+  - name: spec-written
+    type: file_exists
+    path: specs/current.md
+  - name: app-unchanged
+    type: regex
+    target: { source: file, path: app.py }
+    pattern: verbose
+    match: not_contains
+  - name: no-questions
+    type: tool_used
+    tool: AskUserQuestion
+    min: 0
+    max: 0
