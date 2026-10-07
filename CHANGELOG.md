@@ -1,5 +1,24 @@
 # Changelog
 
+## 6.0.0
+
+Breaking. The default is now to work normally. A spec is for risky paths and for the times you ask. Local A/B runs showed no quality gain on clear bugs and a cost of 1.6x to 3.9x, because every change went through spec, approval and finalize.
+
+- No default gate. The `spec-gate` hook allows `Edit`, `Write` and `NotebookEdit` unless the path is risky and no spec is approved. `specs/` is always allowed.
+- Risky paths: `.github/workflows/`, `.gitlab-ci.yml`, `.env*` (not `.env.example` or `.env.sample`), `.husky/`, `.devcontainer/`, `.mcp.json`, `migrations/`, `*.sql`, `Dockerfile*`, `docker-compose*`, `*.tf`, `prisma/schema.prisma`, `supabase/`, and `auth`, `permissions` folders or `auth.*`, `permissions.*`, `policies.*` files. A `.ras/risky-paths` file (one regex per line) replaces the defaults.
+- The hook also covers `Bash`: a write-ish command (`>`, `tee`, `sed -i`, `cp`, `mv`, `rm`, `truncate`, `git apply`, `patch`, `dd`) that names a risky path is denied. A guard rail, not a sandbox.
+- `approve spec` is scoped to the session that got it. An approval from another session does not count. Archiving the spec ends it.
+- The deny message names the matched pattern and tells the agent to ask its questions, write `specs/current.md` and get `approve spec`.
+- Session-start context is 5 lines: work normally, `/spec` on request, risky paths need a spec, end code changes with a `Decisions` section.
+- `Stop`: when a turn changed files (via `git`) and the reply has no `Decisions` heading, the hook asks once, with "touched N files, M lines". It never loops and skips non-git folders.
+- `spec`: only on `/spec`, a plan request, or a denied risky edit. New "Goals first" step: ask only what is unknown, one round, then write the spec, then ask for approval once. New "Proposed additions" section (Detail, Proposal, Why it matters).
+- `build` and `finalize` are for the gate lane. `finalize` verifies once per code state, keeps one failure-path check, puts throwaway repro scripts in `specs/`, keeps one regression test for a bug fix, and reports Decisions.
+- `diagnose` is for an unknown cause only, and no longer routes every fix into `spec`.
+- `security-check` triggers on risky behavior in any lane: auth, permissions, secrets, payments, personal data, data deletion.
+- `which` shows the new lanes.
+- Evals: 14 cases. New `default-lane`. `hook-blocks-edit` now targets a CI workflow. `spec-first`, `spec-asks` and `spec-asks-mid` use an explicit `/spec`. `security-check` checks the admin guard in the code, not a spec section.
+- `tests/test_spec_gate.sh` covers the new gate, 127 checks.
+
 ## 5.0.0
 
 - First public release, in a new repository with a fresh history.
