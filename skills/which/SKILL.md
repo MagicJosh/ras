@@ -8,14 +8,16 @@ disable-model-invocation: true
 
 | Skill | Use when | Example request |
 |---|---|---|
-| `spec` | Before any file change: write the spec, get approval | "Fix the login timeout" |
-| `build` | An approved spec exists and you implement it | "Spec approved, go ahead" |
-| `finalize` | The work is done: defects, cuts, fresh checks, report | "Are we done?" |
+| `spec` | A plan first, or a risky path was denied | "/spec add a retry" |
+| `build` | Gate lane: implement an approved spec | "Spec approved, go ahead" |
+| `finalize` | Gate lane: defects, cuts, fresh checks, report | "Wrap it up" |
 | `diagnose` | The cause of a failure is unknown | "The export crashes, I do not know why" |
 | `architecture` | Choose a style, weigh trade-offs, write an ADR | "Monolith or modules for this app?" |
 | `distributed-architecture` | Split a system: service size, data ownership, transactions | "Should billing become its own service?" |
 | `deep-review` | Strict maintainability review of existing messy code | "Run a deep review of this module" |
 | `security-check` | A change touches auth, secrets, permissions, deletes or production | "Add an admin delete endpoint" |
-| `rules` | Install the ponytail coding rules for every session. User call only | "/rules" |
+| `rules` | Install the coding rules. User call only | "/rules" |
+
+A normal change needs no skill. The gate lane (risky path or `/spec`) runs `spec`, `build`, `finalize`.
 
 Rule: answer with one or two skills and their order. Give one line of reason for each. Then stop. Make no edits.

@@ -1,11 +1,11 @@
 ---
 name: build
-description: Use when the user has approved specs/current.md and you are about to implement it. Gives the build rules. Read first, take the cheapest solution, fix the shared root cause once, keep the code short and easy to audit.
+description: Use when the user has approved specs/current.md and you are about to implement it, in the gate lane only. Gives the build rules. Read first, take the cheapest solution, fix the shared root cause once, keep the code short.
 ---
 
 # Build
 
-Goal: simple, short code that works and is easy to audit.
+Goal: simple, short code that works and is easy to audit. Use this skill only for a spec-approved change. Ordinary changes follow the same habits without it.
 
 ## Before you write code
 

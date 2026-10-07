@@ -1,6 +1,6 @@
 ---
 name: diagnose
-description: Use when something fails or behaves wrongly and the cause is unknown, such as an error, a failing test, wrong output, flaky behavior, or a fix that did not work. Finds the root cause instead of patching the symptom.
+description: Use when the cause of a failure is unknown, such as a failing test, wrong output, flaky behavior or a fix that did not work. Not when the cause is known. Finds the root cause instead of patching the symptom.
 ---
 
 # Diagnose
@@ -20,7 +20,7 @@ Find the root cause. Do not patch before you understand.
 
 ## Rules
 
-- A spec is needed before the fix, as for any change. Criterion 1 is the reproduction, and it fails before the fix.
+- Once the cause is known, fix it like any other change. If the fix touches a risky path, the hook asks for a spec first. Then criterion 1 is the reproduction, and it fails before the fix.
 - If a restart makes the symptom go away, you have contained it. You have not fixed it.
 - If the live system is risky to test on, use a copy, staging, read-only access, or old logs.
 - After three different failed approaches, stop. Report what you tried, what the evidence shows, and the structural options. Do not try a fourth guess.
