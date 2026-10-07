@@ -1,0 +1,26 @@
+schema_version: "1.1"
+name: default-lane
+description: A clear bug fix on a normal path needs no spec. The agent fixes it, runs the test and ends with Decisions.
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: 'is_even in calc.py returns True for odd numbers. Fix it and run python3 test_calc.py.'
+  max_turns: 20
+  allowed_tools: [Read, Glob, Grep, Skill, Write, Edit, Bash]
+graders:
+  - name: bug-gone
+    type: regex
+    target: { source: file, path: calc.py }
+    pattern: '%\s*2\s*==\s*1'
+    match: not_contains
+  - name: test-ran
+    type: tool_used
+    tool: Bash
+    input_match: 'test_calc\.py'
+  - name: no-spec
+    type: file_exists
+    path: specs/current.md
+    exists: false
+  - name: decisions
+    type: regex
+    pattern: 'Decisions'

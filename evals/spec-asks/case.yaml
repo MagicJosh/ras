@@ -1,10 +1,10 @@
 schema_version: "1.1"
 name: spec-asks
-description: A vague change request makes spec ask clarifying questions, and stop, before it writes the spec.
+description: A vague /spec request makes spec ask clarifying questions, and stop, before it writes the spec.
 context:
   scaffold_script: scaffold.sh
 execution:
-  prompt: 'Add an export feature to the app.'
+  prompt: '/spec Add an export feature to the app.'
   max_turns: 25
   allowed_tools: [Read, Glob, Grep, Skill, Write, Edit, AskUserQuestion]
 graders:

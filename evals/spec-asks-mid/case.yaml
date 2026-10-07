@@ -1,10 +1,10 @@
 schema_version: "1.1"
 name: spec-asks-mid
-description: A request with two reasonable readings ("nicer output") makes spec ask before it writes the spec.
+description: A /spec request with two reasonable readings ("nicer output") makes spec ask before it writes the spec.
 context:
   scaffold_script: scaffold.sh
 execution:
-  prompt: 'Make the output of the app nicer.'
+  prompt: '/spec Make the output of the app nicer.'
   max_turns: 25
   allowed_tools: [Read, Glob, Grep, Skill, Write, Edit, AskUserQuestion]
 graders:

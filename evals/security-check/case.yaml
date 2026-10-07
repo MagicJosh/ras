@@ -1,6 +1,6 @@
 schema_version: "1.1"
 name: security-check
-description: A destructive admin feature loads security-check, and the spec gets a Security section.
+description: A destructive admin feature loads security-check in the default lane, and the code checks the actor is an admin.
 context:
   scaffold_script: scaffold.sh
 execution:
@@ -12,8 +12,7 @@ graders:
     type: tool_used
     tool: Skill
     input_match: '"skill"\s*:\s*"ras:security-check"'
-  - name: security-section
+  - name: admin-checked
     type: regex
-    target: { source: file, path: specs/current.md }
-    pattern: '^## Security'
-    flags: m
+    target: { source: file, path: users.py }
+    pattern: 'is_admin\(actor_id\)'
