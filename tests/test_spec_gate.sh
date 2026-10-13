@@ -53,11 +53,11 @@ reset
 for f in .github/workflows/ci.yml .gitlab-ci.yml .env .env.local app/.env.production .husky/pre-commit .devcontainer/devcontainer.json \
   .mcp.json db/migrations/001_init.py migrations/x.txt schema.sql db/seed.SQL Dockerfile Dockerfile.dev docker-compose.yml docker-compose.prod.yml \
   infra/main.tf prisma/schema.prisma supabase/config.toml supabase/migrations/1.sql src/auth/login.py src/permissions/roles.py \
-  src/auth.ts lib/permissions.rb app/policies.js .ras/risky-paths; do
+  src/auth.ts lib/permissions.rb app/policies.js .ras/risky-paths .claude/spec.approved .claude/spec.skip .ras/handoffs/../risky-paths; do
   write "$proj/$f"; check "deny risky path $f" 2 $?
 done
 for f in .env.example .env.sample src/author.py src/oauth/client.py src/authors/list.py README.md src/migrate.py docs/auth-notes.md \
-  src/env.py .github/CODEOWNERS specs/current.md specs/x.sql specs/migrations/y.txt sub/specs/current.md; do
+  src/env.py .github/CODEOWNERS .ras/handoffs/2026-10-13.md specs/current.md specs/x.sql specs/migrations/y.txt sub/specs/current.md; do
   write "$proj/$f"; check "allow $f" 0 $?
 done
 write "/elsewhere/a.sql"; check "allow a risky name outside the project" 0 $?
@@ -164,6 +164,8 @@ bdeny "echo x > $proj/.env"
 bdeny "rm -rf supabase/migrations"
 bdeny "rm -rf .ras"
 bdeny "mv .ras /tmp/x"
+bdeny "touch .claude/spec.skip"
+bdeny "echo x > .claude/spec.approved"
 ballow 'git commit -m \"Patch auth redirect\"'
 ballow "pytest tests/auth > /tmp/out 2>&1"
 ballow "npx supabase gen types typescript --local > src/types/db.ts"
@@ -176,6 +178,9 @@ ballow "cat > notes.md <<'EOF'\necho x > .env\nrm -rf .ras\nEOF"
 ballow "rm -rf ./build"
 ballow "echo x > ./out.txt"
 ballow "ls -la .ras"
+ballow "cat .claude/spec.approved"
+ballow "rm -rf .ras/handoffs/old"
+ballow "echo x > .ras/handoffs/h.md"
 ballow "supabase functions deploy"
 ballow "grep -r auth src > /tmp/hits"
 pdeny "Set-Content -Path .env -Value x"
@@ -228,6 +233,11 @@ check "hooks.json: PreToolUse names Bash and PowerShell, timeout 30, onFailure b
 # skip spec lets a risky edit through until the next prompt.
 reset; say "skip spec" >/dev/null; write "$R"; check "allow after skip spec" 0 $?
 say "go on" >/dev/null; write "$R"; check "deny on the next prompt" 2 $?
+reset; say "skip spec" >/dev/null; SID=s2; write "$R"; check "skip spec from another session is ignored" 2 $?
+SID=s1; write "$R"; check "skip spec still works in its own session" 0 $?
+reset; mkdir -p "$S"; : > "$S/spec.skip"; write "$R"; check "an empty skip file counts for no session" 2 $?
+reset; SID=; say "skip spec" >/dev/null; write "$R"; check "skip spec with no session id counts for nothing" 2 $?
+SID=s1
 
 # Approval rules.
 reset; mkspec; say "do not approve spec yet" >/dev/null; write "$R"; check "no approval from 'do not approve spec yet'" 2 $?

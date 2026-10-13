@@ -1,7 +1,8 @@
 #!/bin/sh
 # spec-gate (ras 6): edits are allowed by default. A risky path (CI, env files, migrations, SQL,
 # infra, auth) is denied until the user approves specs/current.md in this session.
-# Risky paths: the defaults below, or the ERE lines of .ras/risky-paths, which replace them.
+# Risky paths: the defaults in guard.awk, or the ERE lines of .ras/risky-paths, which replace them.
+# .ras/ (except .ras/handoffs/) and .claude/spec.* always count, so the agent cannot loosen the list or forge a state file.
 # The spec lives outside .claude/ because Claude Code always prompts for writes to .claude/.
 # Approval state stays in .claude/, so the agent cannot forge it without a prompt.
 # A guard rail for the agent, not a sandbox.
@@ -38,6 +39,14 @@ approved() {
   [ "$a" = "$(cksum < "$spec")" ] && [ "$b" = "$sid" ]
 }
 
+# True when this session said "skip spec": the file holds its session id, which must not be empty.
+skipped() {
+  [ -n "$sid" ] && [ -f "$d/spec.skip" ] || return 1
+  s=
+  IFS= read -r s < "$d/spec.skip" || :
+  [ "$s" = "$sid" ]
+}
+
 if [ "$event" = PreToolUse ]; then
   # One awk process reads the hook JSON and prints the session id, then a verdict (guard.awk).
   case $0 in */*) here=${0%/*} ;; *) here=. ;; esac
@@ -53,8 +62,7 @@ if [ "$event" = PreToolUse ]; then
   "risky "* | "cannot "*) ;;
   *) die "unexpected guard output" ;;
   esac
-  if [ -e "$d/spec.skip" ]; then allow; fi
-  if approved; then allow; fi
+  if skipped || approved; then allow; fi
   case $v in cannot*) trap - EXIT; echo "ras: ${v#cannot }" >&2; exit 2 ;; esac
   deny "${v#risky }"
 fi
@@ -97,7 +105,7 @@ UserPromptSubmit)
     fi ;;
   "skip spec")
     init
-    : > "$d/spec.skip" ;;
+    printf '%s\n' "$sid" > "$d/spec.skip" ;;
   esac
   # Remember what was already changed, so Stop can tell what this turn changed.
   t=$(turn)

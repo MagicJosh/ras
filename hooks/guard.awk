@@ -71,7 +71,8 @@ function load(f,   line, r, x, cr) {
 }
 # Print the pattern that makes the repo-relative, lowercase path w risky. Print nothing if none does.
 function risky(w,   k) {
-  if (w ~ /(^|\/)[.]ras(\/|$)/) return ".ras/"
+  if (w ~ /(^|\/)[.]ras(\/|$)/ && w !~ /(^|\/)[.]ras\/handoffs(\/|$)/) return ".ras/"
+  if (w ~ /(^|\/)[.]claude\/spec[.]/) return ".claude/spec.*"
   if (!ovr && w ~ /(^|\/)[.]env[.](example|sample|template|dist)$/) return ""
   for (k = 1; k <= np; k++) if (w ~ pat[k]) return pat[k]
   return ""
