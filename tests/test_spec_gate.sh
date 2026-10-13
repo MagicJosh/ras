@@ -5,7 +5,8 @@ root=$(cd "$(dirname "$0")/.." && pwd)
 proj=$(mktemp -d)
 tmp=$(mktemp -d)
 g=$(mktemp -d)
-trap 'rm -rf "$proj" "$tmp" "$g"' EXIT
+g3=$(mktemp -d)
+trap 'rm -rf "$proj" "$tmp" "$g" "$g3"' EXIT
 export CLAUDE_PROJECT_DIR=$proj TMPDIR=$tmp GIT_CEILING_DIRECTORIES=$(dirname "$proj") # the temp dirs are no git repos
 S=$proj/.claude
 SID=s1
@@ -269,10 +270,14 @@ gp() { CLAUDE_PROJECT_DIR=$g gate UserPromptSubmit "{\"session_id\":\"$SID\",\"p
 gs() { CLAUDE_PROJECT_DIR=$g gate Stop "{\"session_id\":\"$SID\",\"stop_hook_active\":$2,\"last_assistant_message\":\"$1\"}"; }
 blocked() { printf '%s' "$out" | $py -c 'import json,sys; j=json.load(sys.stdin); sys.exit(0 if j["decision"] == "block" and all(w in j["reason"] for w in sys.argv[1:]) else 1)' "$@"; }
 SID=t1; gp "fix it"; printf 'c\n' >> "$g/a.py"; printf 'n1\nn2\nn3\n' > "$g/new.py"
-out=$(gs 'Done. All tests pass.' false); blocked 'touched 2 files, 4 lines' 'Decisions'; check "fallback blocks once and counts files and lines" 0 $?
+out=$(gs 'Done. All tests pass.' false); blocked 'touched 2 files. End your reply' 'Decisions'; check "fallback blocks once and counts files" 0 $?
 out=$(gs 'Done. All tests pass.' true); check "fallback stays quiet when stop_hook_active is true" "" "$out"
 out=$(gs 'Done.\\n\\n## Decisions\\n- none' false); check "fallback: a Decisions heading is enough" "" "$out"
 out=$(gs 'Done.\\n\\n**Decisions**: none' false); check "fallback: bold Decisions is enough" "" "$out"
+out=$(gs 'Done.\\n\\n- Decisions: none' false); check "fallback: a list item Decisions is enough" "" "$out"
+out=$(gs 'Done.\\n\\n- **Decisions**: none' false); check "fallback: a bold list item Decisions is enough" "" "$out"
+out=$(gs 'Done.\\n\\n* Decisions' false); check "fallback: a star list item Decisions is enough" "" "$out"
+out=$(gs 'Done.\\n\\n  1. Decisions' false); blocked 'touched'; check "fallback: a numbered item is not a Decisions heading" 0 $?
 out=$(gs 'I made no decisions that matter.' false); blocked 'touched'; check "fallback: the word in prose is not a heading" 0 $?
 gp "thanks, what did you change?"; out=$(gs 'A one-line fix.' false); check "fallback: a turn with no new change is quiet" "" "$out"
 SID=t2; gp "again"; out=$(gs 'Nothing to report.' false); check "fallback: earlier uncommitted work is not this turn's" "" "$out"
@@ -280,6 +285,14 @@ SID=t3; out=$(gs 'No prompt seen.' false); check "fallback: no turn snapshot is 
 out=$(CLAUDE_PROJECT_DIR=$proj gate Stop '{"session_id":"t1","last_assistant_message":"Done."}'); check "fallback: not a git repo is quiet" "" "$out"
 SID=t4; gp "spec please"; printf 'x\n' >> "$g/a.py"; mkdir -p "$g/specs"; printf '# Spec: t\n\n## Goal\nG.\n' > "$g/specs/current.md"
 out=$(gs 'Spec written. Reply approve spec.' false); printf '%s' "$out" | grep -q systemMessage; check "fallback: an approval request shows the spec Decisions, not a block" 0 $?
+# Binary files do not count: not a changed one (numstat shows -), not a new one (--eol shows w/-text).
+git -C "$g3" init -q && printf 'a\n' > "$g3/a.py" && printf 'x\000y\n' > "$g3/b.dat" && git -C "$g3" add . && git -C "$g3" -c user.name=t -c user.email=t@t commit -qm init
+gp3() { CLAUDE_PROJECT_DIR=$g3 gate UserPromptSubmit "{\"session_id\":\"$SID\",\"prompt\":\"go\"}" >/dev/null; }
+gs3() { CLAUDE_PROJECT_DIR=$g3 gate Stop "{\"session_id\":\"$SID\",\"stop_hook_active\":false,\"last_assistant_message\":\"Done.\"}"; }
+SID=t5; gp3; printf 'x\000z\n' > "$g3/b.dat"; printf 'p\000q\n' > "$g3/new.dat"
+out=$(gs3); check "fallback: binary files alone are quiet" "" "$out"
+printf 'a\nb\n' > "$g3/a.py"; printf 'n\n' > "$g3/new.py"
+out=$(gs3); blocked 'touched 2 files.'; check "fallback: only the text files count" 0 $?
 SID=s1
 
 # SessionStart: short context for every source; only startup and clear end the approval.

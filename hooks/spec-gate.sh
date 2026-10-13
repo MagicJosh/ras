@@ -73,13 +73,11 @@ field() { printf '%s' "$input" | grep -oE '"('"$1"')"[[:space:]]*:[[:space:]]*"(
   sed -n '1{s/^"[a-z_]*"[[:space:]]*:[[:space:]]*"//;s/"$//;p;}'; }
 sid=$(field session_id)
 
-# Changed files, one "added<TAB>deleted<TAB>path" line each (git numstat). Untracked files count their lines.
-# shortcut: the first 200 untracked files only, upgrade when a turn creates more.
+# Changed text files, one line each: git numstat for tracked files, git --eol for untracked ones.
+# Binary files are left out: numstat shows them as "-", --eol as w/-text.
 snap() {
-  git -C "$proj" diff HEAD --numstat -- . 2>/dev/null || :
-  git -C "$proj" ls-files -o --exclude-standard 2>/dev/null | head -200 | while IFS= read -r f; do
-    printf '%s\t0\t%s\n' "$(wc -l < "$proj/$f" 2>/dev/null | tr -d ' ' || echo 0)" "$f"
-  done || :
+  git -C "$proj" diff HEAD --numstat -- . 2>/dev/null | grep -v '^-' || :
+  git -C "$proj" ls-files -o --exclude-standard --eol 2>/dev/null | grep -v 'w/-text' || :
 }
 # The file that holds this turn's starting snapshot. Empty when there is no session id.
 turn() { t=$(printf '%s' "$sid" | tr -cd 'A-Za-z0-9_-'); [ -z "$t" ] || echo "${TMPDIR:-/tmp}/ras-turn-$t"; }
@@ -125,14 +123,14 @@ Stop)
   fi
   # Fallback: the turn changed files and the reply has no Decisions heading. Ask once.
   if printf '%s' "$input" | grep -qE '"stop_hook_active"[[:space:]]*:[[:space:]]*true'; then allow; fi
-  printf '%s' "$last" | grep -qE '(^|\\n)[[:space:]]*(#+[[:space:]]*|\*\*)?decisions' && allow
+  printf '%s' "$last" | grep -qE '(^|\\n)[[:space:]]*([-*+][[:space:]]+)?(#+[[:space:]]*|\*\*)?decisions' && allow
   t=$(turn)
   [ -n "$t" ] && [ -f "$t" ] || allow
   git -C "$proj" rev-parse --is-inside-work-tree >/dev/null 2>&1 || allow
-  set -- $(snap | grep -vxFf "$t" | awk -F'\t' '{ s += $1 + $2 } END { print NR + 0, s + 0 }' || :)
-  [ "${1:-0}" -gt 0 ] || allow
+  n=$(snap | grep -vxFc -f "$t" || :)
+  [ "${n:-0}" -gt 0 ] || allow
   trap - EXIT
-  printf '{"decision":"block","reason":"ras: this turn touched %s files, %s lines. End your reply with a short Decisions section: the choices you made that the user did not specify, or none."}\n' "$1" "${2:-0}"
+  printf '{"decision":"block","reason":"ras: this turn touched %s files. End your reply with a short Decisions section: the choices you made that the user did not specify, or none."}\n' "$n"
   exit 0 ;;
 *)
   die "unknown event '$event'" ;;
