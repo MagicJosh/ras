@@ -10,13 +10,15 @@ export CLAUDE_PROJECT_DIR=$proj TMPDIR=$tmp GIT_CEILING_DIRECTORIES=$(dirname "$
 S=$proj/.claude
 SID=s1
 pass=0 fail=0
+py=python3; $py -c 1 2>/dev/null || py=python
 
 gate() { printf '%s' "$2" | sh "$root/hooks/spec-gate.sh" "$1" 2>/dev/null; } # event, json
 write() { gate PreToolUse "{\"session_id\":\"$SID\",\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$1\",\"content\":\"x\"}}"; }
+ps_() { gate PreToolUse "{\"session_id\":\"$SID\",\"tool_name\":\"PowerShell\",\"tool_input\":{\"command\":\"$1\"}}"; }
 bash_() { gate PreToolUse "{\"session_id\":\"$SID\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$1\"}}"; }
 say() { gate UserPromptSubmit "{\"session_id\":\"$SID\",\"hook_event_name\":\"UserPromptSubmit\",\"prompt\":\"$1\"}"; }
 check() { # name, wanted exit code, got exit code
-  if [ "$2" = "$3" ]; then pass=$((pass + 1)); echo "ok   $1"; else fail=$((fail + 1)); echo "FAIL $1 (want exit $2, got $3)"; fi
+  if [ "$2" = "$3" ]; then pass=$((pass + 1)); printf 'ok   %s\n' "$1"; else fail=$((fail + 1)); printf 'FAIL %s (want exit %s, got %s)\n' "$1" "$2" "$3"; fi
 }
 reset() { rm -rf "$S" "$proj/specs" "$proj/.ras"; SID=s1; }
 SP=$proj/specs/current.md
@@ -62,11 +64,26 @@ write "/elsewhere/a.sql"; check "allow a risky name outside the project" 0 $?
 
 # Windows paths.
 # Runs in $proj: on Linux the hook would create a folder named C:\Users\me\repo in the working directory.
-win() { (cd "$proj" && printf '%s' "{\"tool_input\":{\"file_path\":\"$1\"}}" | CLAUDE_PROJECT_DIR='C:\Users\me\repo' sh "$root/hooks/spec-gate.sh" PreToolUse 2>/dev/null); }
-win 'C:\\Users\\me\\repo\\specs\\current.md'; check "allow Windows path to the spec" 0 $?
-win 'C:\\Users\\me\\repo\\src\\a.py'; check "allow Windows path to a normal file" 0 $?
-win 'c:/users/me/repo/.github/workflows/ci.yml'; check "deny Windows path to a risky file" 2 $?
-win '/c/Users/me/repo/.github/workflows/ci.yml'; check "deny Git Bash path to a risky file" 2 $?
+# Git Bash has cygpath: there the project is the real temp folder in its Windows form.
+if command -v cygpath >/dev/null 2>&1; then W=$(cygpath -w "$proj"); else W='C:\Users\me\repo'; fi
+Wj=$(printf '%s' "$W" | sed 's/\\/\\\\/g')                      # for inside JSON
+Wf=$(printf '%s' "$W" | tr '\\A-Z' '/a-z')                      # c:/users/me/repo
+Wg=/$(printf '%s' "$Wf" | sed 's,^\([a-z]\):,\1,')             # /c/users/me/repo
+winj() { (cd "$proj" && printf '%s' "$1" | CLAUDE_PROJECT_DIR=$W sh "$root/hooks/spec-gate.sh" PreToolUse 2>/dev/null); }
+win() { winj "{\"tool_input\":{\"file_path\":\"$1\"}}"; }
+winb() { winj "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"$1\"}}"; }
+winp() { winj "{\"tool_name\":\"PowerShell\",\"tool_input\":{\"command\":\"$1\"}}"; }
+win "$Wj"'\\specs\\current.md'; check "allow Windows path to the spec" 0 $?
+win "$Wj"'\\src\\a.py'; check "allow Windows path to a normal file" 0 $?
+win "$Wf/.github/workflows/ci.yml"; check "deny Windows path to a risky file" 2 $?
+win "$Wg/.github/workflows/ci.yml"; check "deny Git Bash path to a risky file" 2 $?
+win "$Wj"'\\specs\\..\\.env'; check "deny Windows path that climbs out of specs" 2 $?
+winb 'echo x > specs/../.env'; check "deny Bash climb out of specs with a Windows project" 2 $?
+winb "echo x > $Wf/.env"; check "deny Bash redirect to a drive-letter path" 2 $?
+winb "echo x > $Wg/.env"; check "deny Bash redirect to a Git Bash path" 2 $?
+winb "echo x > $Wf/src/a.py"; check "allow Bash redirect to a normal drive-letter path" 0 $?
+winp "Set-Content -Path $Wj\\\\.env -Value x"; check "deny PowerShell Set-Content on a Windows path" 2 $?
+winp "Set-Content -Path $Wj\\\\src\\\\a.py -Value x"; check "allow PowerShell Set-Content on a normal Windows path" 0 $?
 write "$(printf '%s' "$proj" | tr 'a-z' 'A-Z')/.github/workflows/ci.yml"; check "deny: project path in other case" 2 $?
 
 # Repo override: .ras/risky-paths replaces the defaults.
@@ -85,7 +102,8 @@ bash_ "echo x >> $proj/.env.local"; check "Bash: append to an absolute .env.loca
 bash_ "cat a.txt | tee Dockerfile"; check "Bash: tee into Dockerfile denied" 2 $?
 bash_ "sed -i s/a/b/ db/migrations/001.sql"; check "Bash: sed -i on a migration denied" 2 $?
 bash_ "sed -n -i.bak s/a/b/ infra/main.tf"; check "Bash: sed -n -i on a tf file denied" 2 $?
-bash_ "cp x.sql backup.txt"; check "Bash: cp of a sql file denied" 2 $?
+bash_ "cp backup.txt x.sql"; check "Bash: cp into a sql file denied" 2 $?
+bash_ "cp x.sql backup.txt"; check "Bash: reading a sql file into another file allowed" 0 $?
 bash_ "mv .github/workflows/ci.yml /tmp/ci.yml"; check "Bash: mv of a workflow denied" 2 $?
 bash_ "cd app && rm -rf supabase"; check "Bash: rm of supabase denied" 2 $?
 bash_ "git apply fix.patch; truncate -s 0 .env"; check "Bash: truncate .env denied" 2 $?
@@ -104,6 +122,109 @@ mkspec; say "approve spec" >/dev/null; bash_ "echo x > .env"; check "Bash: allow
 SID=s2; bash_ "echo x > .env"; check "Bash: approval from another session ignored" 2 $?
 SID=s1
 
+# Paths resolve as text, so . and .. cannot hide a risky path.
+reset
+write "specs/../.env"; check "deny Write specs/../.env" 2 $?
+write "$proj/specs/../.env"; check "deny Write of an absolute specs/../.env" 2 $?
+write ".github/./workflows/ci.yml"; check "deny Write .github/./workflows/ci.yml" 2 $?
+write 'specs\\..\\.env'; check "deny Write with backslashes climbing out of specs" 2 $?
+write '.env'; check "deny: a \\u escape the guard cannot check" 2 $?
+write "src/./a.py"; check "allow src/./a.py" 0 $?
+write "specs/./current.md"; check "allow specs/./current.md as a spec" 0 $?
+write "../outside/.env"; check "allow a relative path that leaves the project" 0 $?
+
+# Bash and PowerShell: redirect targets and the arguments of write commands. A guard rail, not a sandbox.
+bdeny() { bash_ "$1"; check "Bash deny: $1" 2 $?; }
+ballow() { bash_ "$1"; check "Bash allow: $1" 0 $?; }
+pdeny() { ps_ "$1"; check "PowerShell deny: $1" 2 $?; }
+pallow() { ps_ "$1"; check "PowerShell allow: $1" 0 $?; }
+bdeny "echo x > specs/../.env"
+bdeny "echo x > .github/./workflows/ci.yml"
+bdeny "echo x >.env"
+bdeny "echo x>.env"
+bdeny "echo x &> .env"
+bdeny "ls 2>.env"
+bdeny "printf x | tee -a .env"
+bdeny 'bash -c \"echo x > .env\"'
+bdeny "sh -c 'rm -f .env'"
+bdeny 'eval \"rm .env\"'
+bdeny 'echo $(rm -f .env)'
+bdeny "(cd app; rm .env)"
+bdeny "sudo rm .env"
+bdeny "FOO=1 rm .env"
+bdeny "/bin/rm .env"
+bdeny "cat > .env <<'EOF'\nx\nEOF"
+bdeny "bash <<'EOF'\nrm -f .env\nEOF"
+bdeny "cp backup.txt x.sql"
+bdeny "ln -sf /dev/null .env"
+bdeny "perl -pi -e s/a/b/ .env"
+bdeny "git rm .env"
+bdeny "git restore .github/workflows/ci.yml"
+bdeny "echo x > $proj/.env"
+bdeny "rm -rf supabase/migrations"
+bdeny "rm -rf .ras"
+bdeny "mv .ras /tmp/x"
+ballow 'git commit -m \"Patch auth redirect\"'
+ballow "pytest tests/auth > /tmp/out 2>&1"
+ballow "npx supabase gen types typescript --local > src/types/db.ts"
+ballow "cat .env > /tmp/x"
+ballow "cp .env /tmp/env.bak"
+ballow 'echo \"a > .env\" > notes.txt'
+ballow "echo hi # > .env"
+ballow "git checkout feature/auth"
+ballow "cat > notes.md <<'EOF'\necho x > .env\nrm -rf .ras\nEOF"
+ballow "rm -rf ./build"
+ballow "echo x > ./out.txt"
+ballow "ls -la .ras"
+ballow "supabase functions deploy"
+ballow "grep -r auth src > /tmp/hits"
+pdeny "Set-Content -Path .env -Value x"
+pdeny "Remove-Item -Recurse .ras"
+pdeny 'Out-File specs\\..\\.env'
+pdeny '\"x\" | Out-File -FilePath .github\\workflows\\ci.yml'
+pdeny "echo x > .env"
+pdeny "Copy-Item a.txt .env"
+pallow "Get-Content .env"
+pallow "Set-Content -Path notes.txt -Value x"
+pallow 'Get-ChildItem .github\\workflows'
+ps_ ""; check "PowerShell: empty command allowed" 0 $?
+mkspec; say "approve spec" >/dev/null; ps_ "Set-Content -Path .env -Value x"; check "PowerShell: allowed after approval" 0 $?
+reset
+
+# Limits and failures. A guard that cannot check a call says so and denies it.
+line='alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu'
+big="cat > src/gen.py <<'EOF'"; i=0
+while [ $i -lt 150 ]; do big="$big\n$line $i"; i=$((i + 1)); done
+big="$big\nEOF"
+t0=$(date +%s%N); bash_ "$big"; rc=$?; t1=$(date +%s%N)
+check "a 150-line heredoc into a normal file is allowed" 0 $rc
+case $t0$t1 in
+*N*) echo "note: date has no %N, skipping the heredoc timing check" ;;
+*) ms=$(( (t1 - t0) / 1000000 )); echo "     150-line heredoc: $ms ms"; [ "$ms" -lt 1000 ]; check "a 150-line heredoc takes under 1 s" 0 $? ;;
+esac
+guard_err() { rc=0; err=$(printf '%s' "$1" | sh "$root/hooks/spec-gate.sh" PreToolUse 2>&1 >/dev/null) || rc=$?; }
+guard_err "{\"session_id\":\"s1\",\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"echo $(head -c 102400 /dev/zero | tr '\0' a)\"}}"
+check "a 100 KB command is denied" 2 $rc
+case $err in *"too long"*) check "the 100 KB denial says too long" 0 0 ;; *) check "the 100 KB denial says too long" 0 1 ;; esac
+lines=$(awk 'BEGIN { for (i = 0; i < 2001; i++) printf "x\\n" }')
+bash_ "$lines"; check "a command of 2001 lines is denied" 2 $?
+bash_ 'echo x\necho y\necho z'; check "a short multi-line command is allowed" 0 $?
+mkdir -p "$proj/.ras"; printf '[\n' > "$proj/.ras/risky-paths"
+write "src/a.py"; check "override: a bad regex denies every Write" 2 $?
+bash_ "ls"; check "override: a bad regex denies every Bash call" 2 $?
+printf '^secret/\r\n' > "$proj/.ras/risky-paths"
+write "$proj/secret/k.txt"; check "override: a file with CRLF line ends still works" 2 $?
+write "src/a.py"; check "override: CRLF does not turn every path risky" 0 $?
+if [ "$(id -u)" = 0 ]; then echo "note: running as root, skipping the unreadable risky-paths check"; else
+  chmod 000 "$proj/.ras/risky-paths"; write "src/a.py"; check "override: an unreadable file denies" 2 $?; chmod 644 "$proj/.ras/risky-paths"
+fi
+reset
+noawk=$(mktemp -d); printf '#!/bin/sh\nexit 127\n' > "$noawk/awk"; chmod +x "$noawk/awk"
+(PATH=$noawk:$PATH; write "src/a.py"); check "no working awk denies" 2 $?
+rm -rf "$noawk"
+$py -c 'import json,sys; e=json.load(open(sys.argv[1]))["hooks"]["PreToolUse"][0]; h=e["hooks"][0]; sys.exit(0 if all(w in e["matcher"].split("|") for w in ("Edit", "Write", "NotebookEdit", "Bash", "PowerShell")) and h["timeout"] == 30 and h["onFailure"] == "block" else 1)' "$root/hooks/hooks.json"
+check "hooks.json: PreToolUse names Bash and PowerShell, timeout 30, onFailure block" 0 $?
+
 # skip spec lets a risky edit through until the next prompt.
 reset; say "skip spec" >/dev/null; write "$R"; check "allow after skip spec" 0 $?
 say "go on" >/dev/null; write "$R"; check "deny on the next prompt" 2 $?
@@ -121,7 +242,7 @@ printf '%s' '{"tool_input":{"file_path":"/x"}}' | env -u CLAUDE_PROJECT_DIR sh "
 
 # Stop: show the Decisions section when the agent asks for approval.
 stop() { gate Stop "{\"session_id\":\"$SID\",\"hook_event_name\":\"Stop\",\"last_assistant_message\":\"$1\"}"; }
-json_ok() { j=$1; shift; printf '%s' "$j" | python3 -c 'import json,sys; m=json.load(sys.stdin)["systemMessage"]; sys.exit(0 if all(w in m for w in sys.argv[1:]) else 1)' "$@"; }
+json_ok() { j=$1; shift; printf '%s' "$j" | $py -c 'import json,sys; m=json.load(sys.stdin)["systemMessage"]; sys.exit(0 if all(w in m for w in sys.argv[1:]) else 1)' "$@"; }
 reset; mkspec; printf '\n## Decisions\n- Lock the row. Rejected: "retry" with a\\ backslash. Hard to undo: no.\n\n## Non-goals\n- x\n' >> "$SP"
 out=$(stop 'Spec written. Reply with exactly: `approve spec`.'); check "Stop exits 0" 0 $?
 json_ok "$out" 'Lock the row.' '"retry"' 'a\ backslash'; check "Stop prints the Decisions as valid JSON" 0 $?
@@ -136,7 +257,7 @@ out=$(gate Stop 'not json {'); check "Stop: corrupt stdin stays silent" "0:" "$?
 git -C "$g" init -q && printf 'a\nb\n' > "$g/a.py" && git -C "$g" add a.py && git -C "$g" -c user.name=t -c user.email=t@t commit -qm init
 gp() { CLAUDE_PROJECT_DIR=$g gate UserPromptSubmit "{\"session_id\":\"$SID\",\"prompt\":\"$1\"}" >/dev/null; }
 gs() { CLAUDE_PROJECT_DIR=$g gate Stop "{\"session_id\":\"$SID\",\"stop_hook_active\":$2,\"last_assistant_message\":\"$1\"}"; }
-blocked() { printf '%s' "$out" | python3 -c 'import json,sys; j=json.load(sys.stdin); sys.exit(0 if j["decision"] == "block" and all(w in j["reason"] for w in sys.argv[1:]) else 1)' "$@"; }
+blocked() { printf '%s' "$out" | $py -c 'import json,sys; j=json.load(sys.stdin); sys.exit(0 if j["decision"] == "block" and all(w in j["reason"] for w in sys.argv[1:]) else 1)' "$@"; }
 SID=t1; gp "fix it"; printf 'c\n' >> "$g/a.py"; printf 'n1\nn2\nn3\n' > "$g/new.py"
 out=$(gs 'Done. All tests pass.' false); blocked 'touched 2 files, 4 lines' 'Decisions'; check "fallback blocks once and counts files and lines" 0 $?
 out=$(gs 'Done. All tests pass.' true); check "fallback stays quiet when stop_hook_active is true" "" "$out"
@@ -152,7 +273,7 @@ out=$(gs 'Spec written. Reply approve spec.' false); printf '%s' "$out" | grep -
 SID=s1
 
 # SessionStart: short context for every source; only startup and clear end the approval.
-out=$(gate SessionStart '{"source":"startup"}'); printf '%s' "$out" | python3 -c 'import json,sys; c=json.load(sys.stdin)["hookSpecificOutput"]; t=c["additionalContext"]; sys.exit(0 if c["hookEventName"] == "SessionStart" and "approve spec" in t and "Decisions" in t and "/spec" in t and len(t.split("\n")) < 6 else 1)'; check "SessionStart prints under 6 lines of context as JSON" 0 $?
+out=$(gate SessionStart '{"source":"startup"}'); printf '%s' "$out" | $py -c 'import json,sys; c=json.load(sys.stdin)["hookSpecificOutput"]; t=c["additionalContext"]; sys.exit(0 if c["hookEventName"] == "SessionStart" and "approve spec" in t and "Decisions" in t and "/spec" in t and len(t.split("\n")) < 6 else 1)'; check "SessionStart prints under 6 lines of context as JSON" 0 $?
 reset; mkspec; say "approve spec" >/dev/null; gate SessionStart '{"source":"compact"}' >/dev/null; write "$R"; check "compact keeps the approval" 0 $?
 gate SessionStart '{"source":"resume"}' >/dev/null; write "$R"; check "resume keeps the approval" 0 $?
 gate SessionStart '{"source":"clear"}' >/dev/null; write "$R"; check "clear ends the approval" 2 $?
