@@ -54,10 +54,11 @@ reset
 for f in .github/workflows/ci.yml .gitlab-ci.yml .env .env.local app/.env.production .husky/pre-commit .devcontainer/devcontainer.json \
   .mcp.json db/migrations/001_init.py migrations/x.txt schema.sql db/seed.SQL Dockerfile Dockerfile.dev docker-compose.yml docker-compose.prod.yml \
   infra/main.tf prisma/schema.prisma supabase/config.toml supabase/migrations/1.sql src/auth/login.py src/permissions/roles.py \
-  src/auth.ts lib/permissions.rb app/policies.js .ras/risky-paths .claude/spec.approved .claude/spec.skip .ras/handoffs/../risky-paths; do
+  src/auth.ts lib/permissions.rb app/policies.js .ras/risky-paths .claude/spec.approved .claude/spec.skip .ras/handoffs/../risky-paths \
+  .envrc compose.yaml compose.yml compose.override.yml db/migrate/20240101_x.rb .github/actions/setup/action.yml; do
   write "$proj/$f"; check "deny risky path $f" 2 $?
 done
-for f in .env.example .env.sample src/author.py src/oauth/client.py src/authors/list.py README.md src/migrate.py docs/auth-notes.md \
+for f in .env.example .env.sample .env.template .env.dist supabase/functions/x/index.ts src/compose.ts docker/composer.yaml src/author.py src/oauth/client.py src/authors/list.py README.md src/migrate.py docs/auth-notes.md \
   src/env.py .github/CODEOWNERS .ras/handoffs/2026-10-13.md specs/current.md specs/x.sql specs/migrations/y.txt sub/specs/current.md; do
   write "$proj/$f"; check "allow $f" 0 $?
 done
@@ -106,7 +107,8 @@ bash_ "sed -n -i.bak s/a/b/ infra/main.tf"; check "Bash: sed -n -i on a tf file 
 bash_ "cp backup.txt x.sql"; check "Bash: cp into a sql file denied" 2 $?
 bash_ "cp x.sql backup.txt"; check "Bash: reading a sql file into another file allowed" 0 $?
 bash_ "mv .github/workflows/ci.yml /tmp/ci.yml"; check "Bash: mv of a workflow denied" 2 $?
-bash_ "cd app && rm -rf supabase"; check "Bash: rm of supabase denied" 2 $?
+bash_ "rm -rf supabase/migrations"; check "Bash: rm of supabase/migrations denied" 2 $?
+bash_ "cd app && rm -rf supabase"; check "Bash: rm of the supabase folder allowed, only its config and migrations are risky" 0 $?
 bash_ "git apply fix.patch; truncate -s 0 .env"; check "Bash: truncate .env denied" 2 $?
 bash_ "dd if=x of=src/auth/login.py"; check "Bash: dd into an auth dir denied" 2 $?
 bash_ "cat .env"; check "Bash: reading .env allowed" 0 $?

@@ -42,18 +42,21 @@ function canon(p,   lead, n, i, m, s, r) {
 # The risky paths: the defaults, or the lines of .ras/risky-paths, which replace them.
 function load(f,   line, r, x, cr) {
   if (f == "") {
-    add("(^|/)[.]github/workflows(/|$)")
+    add("(^|/)[.]github/(workflows|actions)(/|$)")
     add("(^|/)[.]gitlab-ci[.]yml$")
     add("(^|/)[.]env([.][^/]*)?$")
+    add("(^|/)[.]envrc$")
     add("(^|/)[.](husky|devcontainer)(/|$)")
     add("(^|/)[.]mcp[.]json$")
     add("(^|/)migrations?(/|$)")
+    add("(^|/)db/migrate(/|$)")
     add("[.]sql$")
     add("(^|/)dockerfile[^/]*$")
     add("(^|/)docker-compose[^/]*$")
+    add("(^|/)compose([.][^/]+)?[.]ya?ml$")
     add("[.]tf(vars)?$")
     add("(^|/)prisma/schema[.]prisma$")
-    add("(^|/)supabase(/|$)")
+    add("(^|/)supabase/config[.]toml$")
     add("(^|/)(auth|permissions)(/|$)")
     add("(^|/)(auth|permissions|policies)[.][^/]*$")
     return
