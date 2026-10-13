@@ -19,7 +19,8 @@ Breaking. The default is now to work normally. A spec is for risky paths and for
 - `security-check` triggers on risky behavior in any lane: auth, permissions, secrets, payments, personal data, data deletion.
 - `which` shows the new lanes.
 - Evals: 15 cases. New `default-lane`. `hook-blocks-edit` now targets a CI workflow. `spec-first`, `spec-asks` and `spec-asks-mid` use an explicit `/spec`. `security-check` checks the admin guard in the code, not a spec section.
-- `tests/test_spec_gate.sh` covers the new gate, 262 checks. CI runs it on Ubuntu and Windows (Git Bash), and validates the plugin with Claude Code 2.1.296, the first version that checks `hooks.json`. `*.awk` files keep LF line ends.
+- `tests/test_spec_gate.sh` covers the new gate, 262 checks. CI runs it on Ubuntu and Windows (Git Bash), and validates the plugin with Claude Code 2.1.296, which also checks `hooks.json` (2.1.231 did not). `*.awk` files keep LF line ends.
+- Cost A/B against no plugin, after the gate fix (Sonnet 5.5 medium, Claude Code 2.1.296, 6 runs per arm and bug). A one-file bug in the default lane costs 1.1x (median, mean 1.3x). 5.0 cost 3.9x on it. A database race that needs a migration, so the gate lane, costs 1.7x (median, mean 1.55x). 5.0 cost 1.6x on it. Pass rate 12 of 12 against 11 of 12, too few runs to show a quality difference.
 
 ## 5.0.0
 
