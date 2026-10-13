@@ -8,7 +8,7 @@
 
 function fail(m) { print "ras: " m > "/dev/stderr"; exit 1 }
 function set(A, s,   n, i) { n = split(s, tw, " "); for (i = 1; i <= n; i++) A[tw[i]] = 1 }
-function add(p) { pat[++np] = p }
+function add(p) { pat[++np] = p; all = all (np > 1 ? "|" : "") "(" p ")" }
 
 # ---- paths
 # Lowercase, \ to /, one slash, /c/x to c:/x, no trailing slash.
@@ -71,12 +71,14 @@ function load(f,   line, r, x, cr) {
   }
   if (r < 0) fail("cannot read " f)
   close(f)
+  if (np) x = ("" ~ all)
 }
 # Print the pattern that makes the repo-relative, lowercase path w risky. Print nothing if none does.
 function risky(w,   k) {
   if (w ~ /(^|\/)[.]ras(\/|$)/ && w !~ /(^|\/)[.]ras\/handoffs(\/|$)/) return ".ras/"
   if (w ~ /(^|\/)[.]claude\/spec[.]/) return ".claude/spec.*"
   if (!ovr && w ~ /(^|\/)[.]env[.](example|sample|template|dist)$/) return ""
+  if (np == 0 || w !~ all) return "" # one regex first: gawk compiles a dynamic regex again each time it changes
   for (k = 1; k <= np; k++) if (w ~ pat[k]) return pat[k]
   return ""
 }

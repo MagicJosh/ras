@@ -131,7 +131,7 @@ write "specs/../.env"; check "deny Write specs/../.env" 2 $?
 write "$proj/specs/../.env"; check "deny Write of an absolute specs/../.env" 2 $?
 write ".github/./workflows/ci.yml"; check "deny Write .github/./workflows/ci.yml" 2 $?
 write 'specs\\..\\.env'; check "deny Write with backslashes climbing out of specs" 2 $?
-write '.env'; check "deny: a \\u escape the guard cannot check" 2 $?
+write '\u002eenv'; check "deny: a \\u escape the guard cannot check" 2 $?
 write "src/./a.py"; check "allow src/./a.py" 0 $?
 write "specs/./current.md"; check "allow specs/./current.md as a spec" 0 $?
 write "../outside/.env"; check "allow a relative path that leaves the project" 0 $?
