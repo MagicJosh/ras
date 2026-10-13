@@ -9,7 +9,7 @@ claude plugin marketplace add MagicJosh/ras
 claude plugin install ras@magicjosh
 ```
 
-Restart Claude Code. On Windows, install Git for Windows, so that `sh` is on the path. The hook needs only `sh`, `grep`, `sed`, `tr`, `awk`, `cksum` and `git`.
+Restart Claude Code. On Windows, install Git for Windows, so that `sh` is on the path. The risky-path check (`PreToolUse`) needs only `sh`, `awk` and `cksum`. The other hook events also use `git`, `grep`, `sed` and `tr`.
 
 Commands are namespaced by the plugin, so the `/` menu shows `/ras:spec`. Typing the short name, such as `/spec` or `/which`, also works, as long as no other command uses it.
 
@@ -40,17 +40,19 @@ The hook puts a `.gitignore` with `*` in `specs/`, so git never tracks specs. To
 
 ## Risky paths
 
-The hook denies `Edit`, `Write` and `NotebookEdit` on these paths until you approve a spec in this session. It always allows `specs/` and any path outside the project.
+The hook denies `Edit`, `Write`, `NotebookEdit`, `Bash` and `PowerShell` writes on these paths until you approve a spec in this session. It always allows `specs/` and any path outside the project. It resolves `.` and `..` first, so `specs/../.env` is `.env`.
 
-- `.github/workflows/`, `.gitlab-ci.yml`
-- `.env` and `.env.*`, but not `.env.example`, `.env.sample`
+- `.github/workflows/`, `.github/actions/`, `.gitlab-ci.yml`
+- `.env` and `.env.*`, `.envrc`, but not `.env.example`, `.env.sample`, `.env.template`, `.env.dist`
 - `.husky/`, `.devcontainer/`, `.mcp.json`
-- any `migrations/` folder, any `*.sql`
-- `Dockerfile*`, `docker-compose*`, `*.tf`
-- `prisma/schema.prisma`, `supabase/`
+- any `migrations/` folder, `db/migrate/`, any `*.sql`
+- `Dockerfile*`, `docker-compose*`, `compose.yaml` and `compose.*.yml`, `*.tf`
+- `prisma/schema.prisma`, `supabase/config.toml`
 - an `auth` or `permissions` folder, and files named `auth.*`, `permissions.*`, `policies.*`
 
-To use your own list, create `.ras/risky-paths` in the repo. One extended regular expression per line. Blank lines and lines that start with `#` are ignored. The file replaces the defaults. It matches the path relative to the repo root, in lower case. `.ras/` is always risky, so the agent cannot loosen the list on its own.
+The hook protects itself. `.ras/` is always risky, except `.ras/handoffs/`, and so is `.claude/spec.*` (the approval and skip state). The agent cannot loosen the list or forge an approval on its own.
+
+To use your own list, create `.ras/risky-paths` in the repo. One extended regular expression per line. Blank lines and lines that start with `#` are ignored, and CRLF line ends are fine. The file replaces the defaults. It matches the path relative to the repo root, in lower case. A pattern that is not a valid regex, or a file the hook cannot read, makes the hook deny every edit until you fix the file.
 
 ```
 # .ras/risky-paths
@@ -59,15 +61,15 @@ To use your own list, create `.ras/risky-paths` in the repo. One extended regula
 (^|/)\.env(\.[^/]*)?$
 ```
 
-The hook also checks `Bash`. A command is denied when it has a write-ish word (`>`, `>>`, `tee`, `sed -i`, `cp`, `mv`, `rm`, `truncate`, `git apply`, `patch`, `dd`) and a risky path. Reading a risky file is fine. This is a guard rail, not a sandbox. It misses paths built at run time.
+The hook also checks `Bash` and `PowerShell`. It denies a command that writes to a risky path: a redirect target (`>`, `>>`, `&>`, `2>`), or an argument of `rm`, `mv`, `touch`, `tee`, `truncate`, `patch`, `sed -i`, `perl -i`, `dd of=`, `git apply`, `git rm`, `git mv`, `git restore`, `cp`, `ln` and `install` (the destination only), and the PowerShell cmdlets such as `Set-Content`, `Out-File` and `Remove-Item`. It also reads inside `sh -c`, `eval` and shell heredocs. Reading a risky file is fine, also into another file: `cat .env > x` passes, `cp x .env` does not. A command over 64 KB or 2,000 lines is denied: write the file with the Write tool. This is a guard rail, not a sandbox. It misses variables, globs, scripts and anything built at run time. It does not catch deleting a parent folder such as `rm -rf .github`.
 
-An approval lasts for the session that got it, and only while the spec is unchanged. Archiving the spec ends it. A new session, `/clear`, or a change to the spec ends it too. Approval state lives in `.claude/` and is git-ignored. Reply `skip spec` to skip the gate until your next prompt.
+An approval lasts for the session that got it, and only while the spec is unchanged. Archiving the spec ends it. A new session, `/clear`, or a change to the spec ends it too. Approval state lives in `.claude/` and is git-ignored. Reply `skip spec` to skip the gate for this session until your next prompt.
 
 Security review is not tied to paths. `security-check` should load in either lane when a change touches auth, permissions, secrets, payments, personal data or data deletion.
 
 ## The Decisions habit
 
-Every reply that changed code ends with a short `Decisions` section: the choices the agent made that you did not specify, or `none`. The session-start hint asks for it. As a fallback, the `Stop` hook checks whether the turn changed files (`git status`, so it needs a git repo) and the reply has no `Decisions` heading. If so, it asks once, with "touched N files, M lines". It never asks twice.
+Every reply that changed code ends with a short `Decisions` section: the choices the agent made that you did not specify, or `none`. The session-start hint asks for it. As a fallback, the `Stop` hook checks whether the turn changed files (`git status`, so it needs a git repo) and the reply has no `Decisions` heading. If so, it asks once, with "touched N files". Binary files do not count. It never asks twice.
 
 When the agent asks you to approve a spec, the hook also shows you the spec's Decisions section.
 
@@ -114,7 +116,7 @@ claude plugin validate .
 
 ## Evals
 
-`evals/` holds a suite for `claude plugin eval`: 14 cases, each a prompt in a small test repo. It checks that each skill loads on the right request and does its job. It also runs each case without the plugin, so the Δ column shows what the plugin adds.
+`evals/` holds a suite for `claude plugin eval`: 15 cases, each a prompt in a small test repo. It checks that each skill loads on the right request and does its job. It also runs each case without the plugin, so the Δ column shows what the plugin adds.
 
 ```
 claude plugin eval . --scaffold --trust-plugin --threshold 0.66 -j 4 --no-publish --max-cost-usd 60 --allow-tools Write Edit Bash
@@ -124,7 +126,7 @@ claude plugin eval . --scaffold --trust-plugin --threshold 0.66 -j 4 --no-publis
 - A Bash grant needs the Claude Code sandbox: `bubblewrap` and `socat` on Linux and WSL2. Native Windows has no sandbox, so use WSL2.
 - `--no-publish` keeps the report on your machine. Without it, a claude.ai account uploads the report, with the prompts and the grader results, as a private artifact.
 - `--scaffold` runs `evals/fixture.sh` to build each test repo. Put `--allow-tools` last, because it takes a list.
-- A full run is 84 agent runs. On a subscription, this uses your plan limits. To try one case: `claude plugin eval . --case spec-first --runs 1 --ablation none --scaffold --trust-plugin --no-publish --allow-tools Write Edit`.
+- A full run is 90 agent runs. On a subscription, this uses your plan limits. To try one case: `claude plugin eval . --case spec-first --runs 1 --ablation none --scaffold --trust-plugin --no-publish --allow-tools Write Edit`.
 - The graders are free checks: regex, tool calls and files. They show if a skill loads and does its job, not if its advice is good.
 - Read Δ only for cases with a result check. `architecture`, `distributed-architecture`, `deep-review` and `which` check only that the skill runs, so their Δ is always 1.00.
 - Results go to `evals/results/`, which git ignores.

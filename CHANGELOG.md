@@ -5,19 +5,21 @@
 Breaking. The default is now to work normally. A spec is for risky paths and for the times you ask. Local A/B runs showed no quality gain on clear bugs and a cost of 1.6x to 3.9x, because every change went through spec, approval and finalize.
 
 - No default gate. The `spec-gate` hook allows `Edit`, `Write` and `NotebookEdit` unless the path is risky and no spec is approved. `specs/` is always allowed.
-- Risky paths: `.github/workflows/`, `.gitlab-ci.yml`, `.env*` (not `.env.example` or `.env.sample`), `.husky/`, `.devcontainer/`, `.mcp.json`, `migrations/`, `*.sql`, `Dockerfile*`, `docker-compose*`, `*.tf`, `prisma/schema.prisma`, `supabase/`, and `auth`, `permissions` folders or `auth.*`, `permissions.*`, `policies.*` files. A `.ras/risky-paths` file (one regex per line) replaces the defaults.
-- The hook also covers `Bash`: a write-ish command (`>`, `tee`, `sed -i`, `cp`, `mv`, `rm`, `truncate`, `git apply`, `patch`, `dd`) that names a risky path is denied. A guard rail, not a sandbox.
-- `approve spec` is scoped to the session that got it. An approval from another session does not count. Archiving the spec ends it.
+- Risky paths: `.github/workflows/`, `.github/actions/`, `.gitlab-ci.yml`, `.env*` and `.envrc` (not `.env.example`, `.env.sample`, `.env.template` or `.env.dist`), `.husky/`, `.devcontainer/`, `.mcp.json`, `migrations/`, `db/migrate/`, `*.sql`, `Dockerfile*`, `docker-compose*`, `compose.yaml` and `compose.*.yml`, `*.tf`, `prisma/schema.prisma`, `supabase/config.toml`, and `auth`, `permissions` folders or `auth.*`, `permissions.*`, `policies.*` files. A `.ras/risky-paths` file (one regex per line, CRLF is fine) replaces the defaults. A bad pattern or an unreadable file denies every edit until it is fixed.
+- The hook protects itself: `.ras/` (except `.ras/handoffs/`) and `.claude/spec.*` are always risky. Paths resolve `.` and `..` first, so `specs/../.env` is `.env`. A JSON `\u` escape in a path or command is denied, because the guard does not decode it.
+- The `Bash` and `PowerShell` guard is rewritten as one awk process (`hooks/guard.awk`). It reads redirect targets and the arguments of write commands, `sh -c`, `eval` and shell heredocs, and skips quotes, comments and heredoc data. The old guard forked dozens of processes per word: a 150-line heredoc took 38 s on Linux, and a hook that times out lets the call through. Now it takes milliseconds. Reading a risky file passes, also into another file (`cat .env > x`). `cp x .env` is denied. It no longer denies `git commit -m "Patch auth redirect"` or `pytest tests/auth > /tmp/out`. A command over 64 KB or 2,000 lines is denied, with a message to use the Write tool. A guard rail, not a sandbox.
+- `hooks.json`: `PreToolUse` also matches `PowerShell`, with `"timeout": 30` and `"onFailure": "block"`. Claude Code 2.1.295 and later block the call when the hook cannot start, crashes or times out. Older versions ignore the key. Any awk failure denies.
+- `approve spec` is scoped to the session that got it. An approval from another session does not count. Archiving the spec ends it. `skip spec` is scoped to the session too, and lasts until the next prompt.
 - The deny message names the matched pattern and tells the agent to ask its questions, write `specs/current.md` and get `approve spec`.
 - Session-start context is 5 lines: work normally, `/spec` on request, risky paths need a spec, end code changes with a `Decisions` section.
-- `Stop`: when a turn changed files (via `git`) and the reply has no `Decisions` heading, the hook asks once, with "touched N files, M lines". It never loops and skips non-git folders.
+- `Stop`: when a turn changed files (via `git`) and the reply has no `Decisions` heading, the hook asks once, with "touched N files". Binary files do not count. A list marker may come before the heading (`- Decisions: none`). It never loops and skips non-git folders.
 - `spec`: only on `/spec`, a plan request, or a denied risky edit. New "Goals first" step: ask only what is unknown, one round, then write the spec, then ask for approval once. New "Proposed additions" section (Detail, Proposal, Why it matters).
 - `build` and `finalize` are for the gate lane. `finalize` verifies once per code state, keeps one failure-path check, puts throwaway repro scripts in `specs/`, keeps one regression test for a bug fix, and reports Decisions.
 - `diagnose` is for an unknown cause only, and no longer routes every fix into `spec`.
 - `security-check` triggers on risky behavior in any lane: auth, permissions, secrets, payments, personal data, data deletion.
 - `which` shows the new lanes.
-- Evals: 14 cases. New `default-lane`. `hook-blocks-edit` now targets a CI workflow. `spec-first`, `spec-asks` and `spec-asks-mid` use an explicit `/spec`. `security-check` checks the admin guard in the code, not a spec section.
-- `tests/test_spec_gate.sh` covers the new gate, 127 checks.
+- Evals: 15 cases. New `default-lane`. `hook-blocks-edit` now targets a CI workflow. `spec-first`, `spec-asks` and `spec-asks-mid` use an explicit `/spec`. `security-check` checks the admin guard in the code, not a spec section.
+- `tests/test_spec_gate.sh` covers the new gate, 262 checks. CI runs it on Ubuntu and Windows (Git Bash), and validates the plugin with Claude Code 2.1.296, the first version that checks `hooks.json`. `*.awk` files keep LF line ends.
 
 ## 5.0.0
 

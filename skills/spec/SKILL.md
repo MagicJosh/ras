@@ -39,4 +39,4 @@ Start the file with `# Spec: <title>`. Put the goal line under `## Goal`.
 - Risky change means auth, secrets, permissions, payments, personal data, deletes of data, or production. For these, load `security-check` before you write the spec. Add a **Security** section with the risks and the checks for them.
 - A new request in the middle of a task updates `specs/current.md`. That breaks the approval. Stop again for `approve spec`.
 - The user can reply `skip spec` to let edits through until the next prompt.
-- Do not write project files with Bash to get around the gate.
+- Do not write project files with Bash or PowerShell to get around the gate.
