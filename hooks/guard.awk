@@ -63,7 +63,7 @@ function load(f,   line, r, x, cr) {
   }
   ovr = 1; cr = sprintf("%c", 13)
   while ((r = (getline line < f)) > 0) {
-    gsub(cr, "", line); sub(/^[[:space:]]+/, "", line); sub(/[[:space:]]+$/, "", line)
+    gsub(cr, "", line); sub(/^[[:blank:]]+/, "", line); sub(/[[:blank:]]+$/, "", line)
     if (line == "" || substr(line, 1, 1) == "#") continue
     line = tolower(line)
     x = ("" ~ line) # compile now: a bad regex ends awk here, on every call

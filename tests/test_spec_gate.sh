@@ -195,6 +195,26 @@ pdeny "Copy-Item a.txt .env"
 pallow "Get-Content .env"
 pallow "Set-Content -Path notes.txt -Value x"
 pallow 'Get-ChildItem .github\\workflows'
+bdeny "git -C app rm .env"
+bdeny "rm -- .env"
+bdeny "rm .ENV"
+bdeny "ls | xargs rm .env"
+bdeny "install -m 644 a .github/workflows/x.yml"
+bdeny "dd if=x of=.env bs=1"
+bdeny "sed --in-place=.bak s/a/b/ .env"
+bdeny "mv --target-directory=.github/workflows a"
+bdeny "pwsh -c 'Remove-Item .env'"
+bdeny "echo a\nrm .env"
+ballow "dd if=.env of=/tmp/x"
+ballow "sed -n s/a/b/p .env"
+ballow "rm ~/.env"
+ballow "rm specs/x.sql"
+ballow "echo a \\\\\nrm .env"
+pdeny "Remove-Item -Path:.env"
+pdeny "Remove-Item a,.env"
+pdeny 'Set-Content -Path \"a b\\.env\" -Value x'
+pallow "Copy-Item .env a.txt"
+pallow "Get-Content .env | Set-Content notes.txt"
 ps_ ""; check "PowerShell: empty command allowed" 0 $?
 mkspec; say "approve spec" >/dev/null; ps_ "Set-Content -Path .env -Value x"; check "PowerShell: allowed after approval" 0 $?
 reset
@@ -231,6 +251,10 @@ chmod 644 "$proj/.ras/risky-paths"
 reset
 noawk=$(mktemp -d); printf '#!/bin/sh\nexit 127\n' > "$noawk/awk"; chmod +x "$noawk/awk"
 (PATH=$noawk:$PATH; write "src/a.py"); check "no working awk denies" 2 $?
+for out_ in 'ok' 'x\nok\nok' 'x\nweird' 'x\nrisky a (matches b)\nmore'; do
+  printf '#!/bin/sh\ncat >/dev/null\nprintf "%s\\n" "%s"\n' '%b' "$out_" > "$noawk/awk"
+  (PATH=$noawk:$PATH; write "src/a.py"); check "awk output that is not two lines with a known verdict denies: $out_" 2 $?
+done
 rm -rf "$noawk"
 $py -c 'import json,sys; e=json.load(open(sys.argv[1]))["hooks"]["PreToolUse"][0]; h=e["hooks"][0]; sys.exit(0 if all(w in e["matcher"].split("|") for w in ("Edit", "Write", "NotebookEdit", "Bash", "PowerShell")) and h["timeout"] == 30 and h["onFailure"] == "block" else 1)' "$root/hooks/hooks.json"
 check "hooks.json: PreToolUse names Bash and PowerShell, timeout 30, onFailure block" 0 $?

@@ -49,7 +49,9 @@ skipped() {
 
 if [ "$event" = PreToolUse ]; then
   # One awk process reads the hook JSON and prints the session id, then a verdict (guard.awk).
-  case $0 in */*) here=${0%/*} ;; *) here=. ;; esac
+  here=${0%/*}
+  [ "$here" != "$0" ] || here=${0%\\*} # a Windows path has backslashes
+  [ "$here" != "$0" ] || here=.
   ovr=
   if [ -e "$proj/.ras/risky-paths" ]; then ovr=$proj/.ras/risky-paths; fi
   out=$(LC_ALL=C RAS_RISKY=$ovr awk -f "$here/guard.awk") || die "the awk guard failed; if .ras/risky-paths exists, check its patterns"
@@ -57,6 +59,7 @@ if [ "$event" = PreToolUse ]; then
   sid=${out%%"$nl"*}
   v=${out#*"$nl"}
   case $v in
+  *"$nl"*) die "unexpected guard output" ;;
   ok) allow ;;
   specs) ign; allow ;;
   "risky "* | "cannot "*) ;;
