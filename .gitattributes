@@ -1,1 +1,2 @@
 *.sh text eol=lf
+*.awk text eol=lf

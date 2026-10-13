@@ -223,9 +223,11 @@ bash_ "ls"; check "override: a bad regex denies every Bash call" 2 $?
 printf '^secret/\r\n' > "$proj/.ras/risky-paths"
 write "$proj/secret/k.txt"; check "override: a file with CRLF line ends still works" 2 $?
 write "src/a.py"; check "override: CRLF does not turn every path risky" 0 $?
-if [ "$(id -u)" = 0 ]; then echo "note: running as root, skipping the unreadable risky-paths check"; else
-  chmod 000 "$proj/.ras/risky-paths"; write "src/a.py"; check "override: an unreadable file denies" 2 $?; chmod 644 "$proj/.ras/risky-paths"
+chmod 000 "$proj/.ras/risky-paths"
+if [ "$(id -u)" = 0 ] || [ -r "$proj/.ras/risky-paths" ]; then echo "note: root, or chmod 000 does not hide the file here, skipping the unreadable risky-paths check"; else
+  write "src/a.py"; check "override: an unreadable file denies" 2 $?
 fi
+chmod 644 "$proj/.ras/risky-paths"
 reset
 noawk=$(mktemp -d); printf '#!/bin/sh\nexit 127\n' > "$noawk/awk"; chmod +x "$noawk/awk"
 (PATH=$noawk:$PATH; write "src/a.py"); check "no working awk denies" 2 $?

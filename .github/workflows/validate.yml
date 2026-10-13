@@ -3,8 +3,6 @@ name: Validate
 on:
   pull_request:
   push:
-    branches:
-      - main
   workflow_dispatch:
 
 permissions:
@@ -32,16 +30,34 @@ jobs:
           node-version: "22"
 
       - name: Install Claude Code validator
-        run: npm install --global --no-audit --no-fund @anthropic-ai/claude-code@2.1.231
+        run: npm install --global --no-audit --no-fund @anthropic-ai/claude-code@2.1.296
 
       - name: Validate Claude plugin
         run: claude plugin validate .
 
-      - name: Test the spec gate (sh is dash on this runner)
-        run: sh tests/test_spec_gate.sh
-
       - name: Check the skills
         run: sh tests/check_skills.sh
+
+  hook-tests:
+    name: Hook tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash # Git Bash on Windows, the shell Claude Code uses for hooks there
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Test the spec gate
+        run: sh tests/test_spec_gate.sh
 
   secrets:
     name: Secret history scan
