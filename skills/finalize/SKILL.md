@@ -13,6 +13,7 @@ Read your own diff.
 
 - Spec compliance first: does each criterion and non-goal hold?
 - Then quality, and the risk to every caller in the blast radius.
+- Back each defect with a concrete input or situation that breaks the code. Drop a suspicion that has none.
 - Run `git status --short`. Name every changed file that the blast radius did not list. Say why it changed, or revert it.
 - A weakened, skipped or deleted test, assertion or guard is a defect. Restore it, unless the spec asked for the change.
 
