@@ -18,6 +18,7 @@ disable-model-invocation: true
 | `deep-review` | Strict maintainability review of existing messy code | "Run a deep review of this module" |
 | `security-check` | A change touches auth, secrets, permissions, deletes or production | "Add an admin delete endpoint" |
 | `debt` | List the marked shortcuts. User call only | "/debt" |
+| `handoff` | Pass the work to a fresh session or another agent. User call only | "/handoff" |
 | `rules` | Install the coding rules. User call only | "/rules" |
 
 A normal change needs no skill. The gate lane (risky path or `/spec`) runs `spec`, `build`, `finalize`.

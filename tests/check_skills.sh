@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.." || exit 1
 fail=0
 bad() { echo "FAIL $*"; fail=1; }
 
-for s in spec build finalize diagnose architecture distributed-architecture deep-review security-check which rules spar debt; do
+for s in spec build finalize diagnose architecture distributed-architecture deep-review security-check which rules spar debt handoff; do
   f=skills/$s/SKILL.md
   [ -f "$f" ] || { bad "$s: missing $f"; continue; }
   fm=$(sed -n '2,/^---$/p' "$f" | sed '$d')

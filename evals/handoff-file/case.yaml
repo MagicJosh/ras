@@ -1,0 +1,30 @@
+schema_version: "1.1"
+name: handoff-file
+description: /handoff writes a dated file under .ras/handoffs/, adds a .gitignore there that holds one star, and changes no project file.
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: '/handoff The next session adds input validation to app.py.'
+  max_turns: 15
+  allowed_tools: [Read, Glob, Grep, Skill, Write, Bash]
+graders:
+  - name: handoff-written
+    type: regex
+    target: trace
+    pattern: '\.ras/handoffs/20[0-9]{2}-'
+    arm: with-only
+  - name: handoffs-ignored
+    type: regex
+    target: { source: file, path: .ras/handoffs/.gitignore }
+    pattern: '^\*\s*$'
+    arm: with-only
+  - name: project-gitignore-unchanged
+    type: regex
+    target: { source: file, path: .gitignore }
+    pattern: '^__pycache__/\s*$'
+  - name: app-unchanged
+    type: regex
+    target: { source: file, path: app.py }
+    pattern: 'valid|raise|isdigit'
+    flags: i
+    match: not_contains
