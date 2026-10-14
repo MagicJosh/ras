@@ -1,6 +1,6 @@
 ---
 name: architecture
-description: Use when choosing or judging a software architecture or a module interface, such as monolith vs modular monolith, styles, trade-offs, fitness functions, seams, bounded contexts, or ADRs. Gives a decision workflow and trade-off checklists.
+description: Use when you design or compare a module's interface, or choose or judge a software architecture, such as monolith vs modular monolith, styles, trade-offs, fitness functions, seams, bounded contexts, or ADRs. Gives a decision workflow, trade-off checklists and interface design rules.
 ---
 
 # Architecture decisions
