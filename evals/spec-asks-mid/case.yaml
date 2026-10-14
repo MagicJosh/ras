@@ -21,3 +21,7 @@ graders:
     pattern: 'f"|format|:<|rjust|ljust|tabulate|color|\\033'
     flags: i
     match: not_contains
+  - name: offers-spar
+    type: regex
+    pattern: '/(ras:)?spar\b'
+    arm: with-only

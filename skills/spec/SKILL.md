@@ -10,10 +10,10 @@ Write the contract before you touch the files. Ordinary changes do not need one.
 ## Steps
 
 1. Read the code the request touches. Trace the real flow. Do not ask what the repo can answer.
-2. **Goals first.** Ask only what is still unknown about: the goal, who uses it, must-have versus nice-to-have, what is out of scope, constraints, and what done looks like. Skip what the request or the code already answers. A clear request gets no questions.
-   - One round with `AskUserQuestion`: at most 4 questions, each with 2 to 4 concrete options, your recommended option first.
-   - Ask open-ended questions in your message. Without the tool, ask everything there and stop.
-   - Decide internal details yourself.
+2. **Goals first.** Find what is still unknown about: the goal, who uses it, must-have versus nice-to-have, what is out of scope, constraints, and what done looks like. Skip what the request or the code already answers. A clear request gets no questions. Decide internal details yourself.
+   - Ask everything that is unknown in one round of plain text in your message. Never use `AskUserQuestion`.
+   - Number the questions. Under each, give your recommended answer after `Recommended:`.
+   - End the round with: "Reply `yes` to accept all, or answer by number. Type `/spar` for a deeper round." Then stop.
 3. Write the spec only after every question is answered. Put what the answers left open under Assumptions. Never ask for approval while a question is open.
 4. Write `specs/current.md` in the project root with the sections below.
 5. Writing the spec is your last action. Copy the Decisions lines into your message, then ask once, and stop: reply with exactly `approve spec`.
