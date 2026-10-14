@@ -1,5 +1,12 @@
 # Changelog
 
+## 6.0.1
+
+The folder check. Before, `rm -rf .github` and `rm -rf supabase` passed, because only the files inside them are risky.
+
+- `rm`, `rmdir`, `mv`, `git rm`, `git mv` and the PowerShell forms (`Remove-Item`, `Move-Item` and their aliases) now get a folder check. The hook runs one `git ls-files` for the folders they take. It denies the command when a tracked file inside is risky. It does not check a destination.
+- Untracked files do not count. The check does nothing when git is not installed, the project is outside git, or git fails.
+
 ## 6.0.0
 
 Breaking. The default is now to work normally. A spec is for risky paths and for the times you ask. Local A/B runs showed no quality gain on clear bugs and a cost of 1.6x to 3.9x, because every change went through spec, approval and finalize.
