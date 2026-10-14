@@ -6,7 +6,8 @@ proj=$(mktemp -d)
 tmp=$(mktemp -d)
 g=$(mktemp -d)
 g3=$(mktemp -d)
-trap 'rm -rf "$proj" "$tmp" "$g" "$g3"' EXIT
+gf=$(mktemp -d)
+trap 'rm -rf "$proj" "$tmp" "$g" "$g3" "$gf"' EXIT
 export CLAUDE_PROJECT_DIR=$proj TMPDIR=$tmp GIT_CEILING_DIRECTORIES=$(dirname "$proj") # the temp dirs are no git repos
 S=$proj/.claude
 SID=s1
@@ -108,7 +109,7 @@ bash_ "cp backup.txt x.sql"; check "Bash: cp into a sql file denied" 2 $?
 bash_ "cp x.sql backup.txt"; check "Bash: reading a sql file into another file allowed" 0 $?
 bash_ "mv .github/workflows/ci.yml /tmp/ci.yml"; check "Bash: mv of a workflow denied" 2 $?
 bash_ "rm -rf supabase/migrations"; check "Bash: rm of supabase/migrations denied" 2 $?
-bash_ "cd app && rm -rf supabase"; check "Bash: rm of the supabase folder allowed, only its config and migrations are risky" 0 $?
+bash_ "cd app && rm -rf supabase"; check "Bash: rm of the supabase folder allowed in a project outside git (the folder check needs git)" 0 $?
 bash_ "git apply fix.patch; truncate -s 0 .env"; check "Bash: truncate .env denied" 2 $?
 bash_ "dd if=x of=src/auth/login.py"; check "Bash: dd into an auth dir denied" 2 $?
 bash_ "cat .env"; check "Bash: reading .env allowed" 0 $?
@@ -322,6 +323,20 @@ out=$(gs3); check "fallback: binary files alone are quiet" "" "$out"
 printf 'a\nb\n' > "$g3/a.py"; printf 'n\n' > "$g3/new.py"
 out=$(gs3); blocked 'touched 2 files.'; check "fallback: only the text files count" 0 $?
 SID=s1
+
+# The folder check: rm or mv of a folder that holds a tracked risky file. Needs git.
+mkdir -p "$gf/.github/workflows" "$gf/supabase" "$gf/docs" && : > "$gf/.github/workflows/ci.yml" && : > "$gf/supabase/config.toml" && : > "$gf/docs/a.md" && : > "$gf/notes.md"
+gc=$(dirname "$gf")
+GIT_CEILING_DIRECTORIES=$gc git -C "$gf" init -q && git -C "$gf" add . && git -C "$gf" -c user.name=t -c user.email=t@example.com commit -qm init
+fgate() ( CLAUDE_PROJECT_DIR=$gf GIT_CEILING_DIRECTORIES=$gc; export CLAUDE_PROJECT_DIR GIT_CEILING_DIRECTORIES; "$@" )
+fgate bash_ "rm -rf .github"; check "folder check: rm -rf .github denied" 2 $?
+fgate bash_ "rm -rf supabase"; check "folder check: rm -rf supabase denied" 2 $?
+fgate bash_ "mv supabase old"; check "folder check: mv supabase old denied" 2 $?
+fgate bash_ "git rm -r -q .github"; check "folder check: git rm -r -q .github denied" 2 $?
+fgate ps_ "Remove-Item -Recurse -Force .github"; check "folder check: PowerShell Remove-Item .github denied" 2 $?
+fgate bash_ "rm -rf docs"; check "folder check: rm -rf docs allowed, it holds no risky file" 0 $?
+fgate bash_ "mv notes.md supabase/"; check "folder check: mv notes.md supabase/ allowed, a destination is not a candidate" 0 $?
+fgate bash_ "rm -rf build"; check "folder check: rm -rf build allowed, nothing in it is tracked" 0 $?
 
 # SessionStart: short context for every source; only startup and clear end the approval.
 out=$(gate SessionStart '{"source":"startup"}'); printf '%s' "$out" | $py -c 'import json,sys; c=json.load(sys.stdin)["hookSpecificOutput"]; t=c["additionalContext"]; sys.exit(0 if c["hookEventName"] == "SessionStart" and "approve spec" in t and "Decisions" in t and "/spec" in t and len(t.split("\n")) < 6 else 1)'; check "SessionStart prints under 6 lines of context as JSON" 0 $?

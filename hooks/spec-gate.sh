@@ -6,7 +6,7 @@
 # The spec lives outside .claude/ because Claude Code always prompts for writes to .claude/.
 # Approval state stays in .claude/, so the agent cannot forge it without a prompt.
 # A guard rail for the agent, not a sandbox.
-# PreToolUse needs only sh, awk and cksum (hooks/guard.awk does the checking). The other events also use grep, sed, tr and git.
+# PreToolUse needs sh, awk and cksum (hooks/guard.awk does the checking), and git for the folder check of rm and mv. The other events also use grep, sed, tr and git.
 # Usage: spec-gate.sh <hook event>, JSON on stdin.
 set -eu
 event=${1:-}

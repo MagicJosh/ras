@@ -5,6 +5,7 @@
 # Env: CLAUDE_PROJECT_DIR, and RAS_RISKY = the .ras/risky-paths file when it exists. Strings come in through
 # ENVIRON because awk -v would process backslash escapes. Regexes use [.] instead of \. for the same reason.
 # A guard rail for the agent, not a sandbox: it reads redirects and the arguments of write commands.
+# For rm and mv it also asks git (ls-files, one call) for the tracked files in a folder that the command takes.
 
 function fail(m) { print "ras: " m > "/dev/stderr"; exit 1 }
 function set(A, s,   n, i) { n = split(s, tw, " "); for (i = 1; i <= n; i++) A[tw[i]] = 1 }
@@ -128,16 +129,22 @@ function dec(s,   m, j, c, o) {
 # ---- the shell tokenizer
 function push(s, ps) { qt[++qn] = s; qp[qn] = ps }
 function chk(w,   h) { if (hitv == "" && w != "") { h = cand(w); if (h != "") hitv = h } }
-# One path word. Print "path (matches pattern)" when it is risky.
-function cand(w,   h) {
-  if (substr(w, 1, 1) == "~") return ""
+# The path of word w, relative to the project. Sets outp when it is outside: ~ or an absolute path elsewhere.
+function rel(w) {
+  outp = 0
+  if (substr(w, 1, 1) == "~") { outp = 1; return "" }
   w = norm(w)
   if (w ~ /^(\/|[a-z]:\/)/) {
     w = canon(w)
-    if (index(w "/", base "/") != 1) return ""
-    w = substr(w, length(base) + 2)
-  } else w = canon(w)
-  if (w == "" || w ~ /^specs\//) return ""
+    if (index(w "/", base "/") != 1) { outp = 1; return "" }
+    return substr(w, length(base) + 2)
+  }
+  return canon(w)
+}
+# One path word. Print "path (matches pattern)" when it is risky.
+function cand(w,   h) {
+  w = rel(w)
+  if (outp || w == "" || w ~ /^specs\//) return ""
   h = risky(w)
   return h == "" ? "" : w " (matches " h ")"
 }
@@ -147,9 +154,51 @@ function argchk(a) {
   else if (index(a, "=")) chk(substr(a, index(a, "=") + 1))
   else if (a !~ /^-/) chk(a)
 }
+# s in single quotes for sh. Not gsub: awks differ on backslashes in the replacement text.
+function sq(s,   n, i, r) {
+  n = split(s, sp, "'"); r = sp[1]
+  for (i = 2; i <= n; i++) r = r "'\\''" sp[i]
+  return "'" r "'"
+}
+# Folder candidates: the path arguments from ar[from] on. A mover leaves out the last one, its destination.
+# shortcut: mv -t dir a b takes b for the destination and dir for a source, upgrade when an agent moves folders that way
+function fold(from, mv,   k, a, p) {
+  p = 0
+  for (k = from; k <= na; k++) {
+    a = ar[k]
+    if (a == "" || a ~ /^-/ || index(a, "=")) continue
+    if (p) fadd(ar[p])
+    p = k
+  }
+  if (p && !mv) fadd(ar[p])
+}
+function fadd(w) {
+  w = rel(w)
+  if (outp || w ~ /^([.][.]|specs)(\/|$)/) return # outside the project, or specs/ (its lines are skipped below)
+  fc[++nfc] = (w == "" ? "." : w)
+}
+# One git call for all candidates: the first tracked file below them that is risky. Git missing, no repo or an error: "".
+function fcheck(   gc, i, f, h) {
+  gc = "GIT_ICASE_PATHSPECS=1 git -C " sq(ENVIRON["CLAUDE_PROJECT_DIR"]) " -c core.quotepath=false ls-files --"
+  for (i = 1; i <= nfc; i++) gc = gc " " sq("./" fc[i])
+  gc = gc " 2>/dev/null"
+  while ((gc | getline f) > 0) {
+    if (f ~ /^".*"$/) f = substr(f, 2, length(f) - 2)
+    f = tolower(f)
+    if (f ~ /^specs\//) continue
+    h = risky(f)
+    if (h != "") { close(gc); return f " (matches " h "), in a folder that this command removes or moves" }
+  }
+  close(gc)
+  return ""
+}
 # The simple command is complete: check its arguments by the command word.
 function evalcmd(   k, a, last, g, s, j) {
-  if (cmd in WR) { for (k = 1; k <= na; k++) argchk(ar[k]); return }
+  if (cmd in WR) {
+    for (k = 1; k <= na; k++) argchk(ar[k])
+    if (cmd in DEL || cmd in MOV) fold(1, cmd in MOV)
+    return
+  }
   if (cmd in DST) { # the destination only: reading a risky file into another file passes
     last = ""
     for (k = 1; k <= na; k++) { a = ar[k]; if (a ~ /^-/ || index(a, "=")) argchk(a); else last = a }
@@ -168,7 +217,7 @@ function evalcmd(   k, a, last, g, s, j) {
       a = ar[k]
       if (g != "") argchk(a)
       else if (a == "-c") k++
-      else if (a !~ /^-/) { g = a; if (!(g in GIT)) return }
+      else if (a !~ /^-/) { g = a; if (!(g in GIT)) return; if (g == "rm" || g == "mv") fold(k + 1, g == "mv") }
     }
     return
   }
@@ -293,6 +342,7 @@ function shell(c, ps) {
   if (length(c) > 65536 || lines(c) > 2000) return TOOLONG
   push(tolower(c), ps)
   for (qi = 1; qi <= qn && hitv == ""; qi++) walk(qt[qi], qp[qi])
+  if (hitv == "" && nfc) hitv = fcheck()
   return hitv == "" ? "ok" : "risky " hitv
 }
 
@@ -318,6 +368,8 @@ END {
   set(SP, "sudo env command exec nohup builtin xargs time")
   set(WR, "rm rmdir mv touch truncate tee patch shred unlink set-content add-content out-file new-item remove-item move-item rename-item clear-content tee-object sc ac ni ri rni ren mi move del erase rd clc")
   set(DST, "cp ln install copy-item cpi copy")
+  set(DEL, "rm rmdir unlink remove-item ri del erase rd")
+  set(MOV, "mv move-item mi move rename-item rni ren")
   set(SHELL, "sh bash dash zsh ksh")
   set(GIT, "apply rm mv restore")
   load(ENVIRON["RAS_RISKY"])
