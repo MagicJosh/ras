@@ -90,7 +90,7 @@ SessionStart)
   [ -d "$proj/specs" ] && ign
   # A new or cleared session starts unapproved. Resume and compact keep the approval.
   case $(field source) in startup | clear | '') rm -f "$d/spec.approved" "$d/spec.skip" ;; esac
-  printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"ras plugin. Work normally and keep diffs small.\nThe user can run /spec (or /ras:spec) for a plan: the spec skill asks the open questions, writes specs/current.md and waits for `approve spec`.\nRisky paths (CI, env files, migrations, SQL, infra, auth) are locked until a spec is approved. If a hook denies an edit, load spec.\nFor a failure with an unknown cause, load diagnose. When a change touches auth, permissions, secrets, payments, personal data or deletes, load security-check.\nEnd every reply that changed code with a short Decisions section: choices you made that the user did not specify, or none."}}' ;;
+  printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"ras plugin. Work normally and keep diffs small.\nThe user can run /spec (or /ras:spec) for a plan: the spec skill asks the open questions, writes specs/current.md and waits for `approve spec`.\nRisky paths (CI, env files, migrations, SQL, infra, auth) are locked until a spec is approved. If a hook denies an edit, load spec.\nFor a failure with an unknown cause, load diagnose. When a change touches auth, permissions, secrets, payments, personal data or deletes, load security-check.\nEnd every reply that changed code with a short Decisions section: choices you made that the user did not specify, and what you skipped or did not check, or none."}}' ;;
 UserPromptSubmit)
   if printf '%s' "$input" | grep -qE '"agent_id"[[:space:]]*:'; then allow; fi
   p=$(field prompt | tr 'A-Z' 'a-z' | sed -E 's/^(\\[nrt]|[[:space:]])+//; s/(\\[nrt]|[[:space:]])+$//')
@@ -133,7 +133,7 @@ Stop)
   n=$(snap | grep -vxFc -f "$t" || :)
   [ "${n:-0}" -gt 0 ] || allow
   trap - EXIT
-  printf '{"decision":"block","reason":"ras: this turn touched %s files. End your reply with a short Decisions section: the choices you made that the user did not specify, or none."}\n' "$n"
+  printf '{"decision":"block","reason":"ras: this turn touched %s files. End your reply with a short Decisions section: the choices you made that the user did not specify, and what you skipped or did not check, or none."}\n' "$n"
   exit 0 ;;
 *)
   die "unknown event '$event'" ;;

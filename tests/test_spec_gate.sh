@@ -301,6 +301,7 @@ blocked() { printf '%s' "$out" | $py -c 'import json,sys; j=json.load(sys.stdin)
 SID=t1; gp "fix it"; printf 'c\n' >> "$g/a.py"; printf 'n1\nn2\nn3\n' > "$g/new.py"
 out=$(gs 'Done. All tests pass.' false); blocked 'touched 2 files. End your reply' 'Decisions'; check "fallback blocks once and counts files" 0 $?
 out=$(gs 'Done. All tests pass.' true); check "fallback stays quiet when stop_hook_active is true" "" "$out"
+out=$(gs 'Done. All tests pass.' false); blocked 'did not check'; check "fallback asks what was skipped or not checked" 0 $?
 out=$(gs 'Done.\\n\\n## Decisions\\n- none' false); check "fallback: a Decisions heading is enough" "" "$out"
 out=$(gs 'Done.\\n\\n**Decisions**: none' false); check "fallback: bold Decisions is enough" "" "$out"
 out=$(gs 'Done.\\n\\n- Decisions: none' false); check "fallback: a list item Decisions is enough" "" "$out"
@@ -340,6 +341,7 @@ fgate bash_ "rm -rf build"; check "folder check: rm -rf build allowed, nothing i
 
 # SessionStart: short context for every source; only startup and clear end the approval.
 out=$(gate SessionStart '{"source":"startup"}'); printf '%s' "$out" | $py -c 'import json,sys; c=json.load(sys.stdin)["hookSpecificOutput"]; t=c["additionalContext"]; sys.exit(0 if c["hookEventName"] == "SessionStart" and "approve spec" in t and "Decisions" in t and "/spec" in t and len(t.split("\n")) < 6 else 1)'; check "SessionStart prints under 6 lines of context as JSON" 0 $?
+out=$(gate SessionStart '{"source":"startup"}'); printf '%s' "$out" | grep -q 'did not check'; check "SessionStart asks what was skipped or not checked" 0 $?
 reset; mkspec; say "approve spec" >/dev/null; gate SessionStart '{"source":"compact"}' >/dev/null; write "$R"; check "compact keeps the approval" 0 $?
 gate SessionStart '{"source":"resume"}' >/dev/null; write "$R"; check "resume keeps the approval" 0 $?
 gate SessionStart '{"source":"clear"}' >/dev/null; write "$R"; check "clear ends the approval" 2 $?
