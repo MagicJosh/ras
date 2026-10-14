@@ -1,0 +1,30 @@
+schema_version: "1.1"
+name: debt-ledger
+description: /debt lists both shortcut comments with file and line, tags the one with no upgrade trigger, and changes nothing.
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: '/debt'
+  max_turns: 15
+  allowed_tools: [Read, Glob, Grep, Skill]
+graders:
+  - name: report-row
+    type: regex
+    pattern: 'report\.py:2'
+    arm: with-only
+  - name: cache-row
+    type: regex
+    pattern: 'cache\.js:1'
+    arm: with-only
+  - name: no-trigger-tag
+    type: regex
+    pattern: 'no-trigger'
+    arm: with-only
+  - name: count
+    type: regex
+    pattern: '2 shortcuts'
+    arm: with-only
+  - name: unchanged
+    type: regex
+    target: { source: file, path: report.py }
+    pattern: 'shortcut: loads every row'

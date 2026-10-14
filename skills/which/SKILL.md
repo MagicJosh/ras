@@ -17,6 +17,7 @@ disable-model-invocation: true
 | `distributed-architecture` | Split a system: service size, data ownership, transactions | "Should billing become its own service?" |
 | `deep-review` | Strict maintainability review of existing messy code | "Run a deep review of this module" |
 | `security-check` | A change touches auth, secrets, permissions, deletes or production | "Add an admin delete endpoint" |
+| `debt` | List the marked shortcuts. User call only | "/debt" |
 | `rules` | Install the coding rules. User call only | "/rules" |
 
 A normal change needs no skill. The gate lane (risky path or `/spec`) runs `spec`, `build`, `finalize`.
