@@ -1,0 +1,31 @@
+schema_version: "1.1"
+name: spar-rounds
+description: /ras:spar asks numbered questions, each with a recommended answer, and stops before any edit.
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: '/ras:spar I want to add a CSV export to this app.'
+  max_turns: 20
+  allowed_tools: [Read, Glob, Grep, Skill, Write, Edit]
+graders:
+  - name: numbered
+    type: regex
+    pattern: 'Q1\b'
+    arm: with-only
+  - name: recommended
+    type: regex
+    pattern: 'Recommended:'
+    arm: with-only
+  - name: asked
+    type: regex
+    pattern: '\?'
+  - name: no-spec-yet
+    type: file_exists
+    path: specs/current.md
+    exists: false
+  - name: app-unchanged
+    type: regex
+    target: { source: file, path: app.py }
+    pattern: 'csv'
+    flags: i
+    match: not_contains

@@ -9,6 +9,7 @@ disable-model-invocation: true
 | Skill | Use when | Example request |
 |---|---|---|
 | `spec` | A plan first, or a risky path was denied | "/spec add a retry" |
+| `spar` | Stress-test a plan or a decision by interview. User call only | "/spar my cache plan" |
 | `build` | Gate lane: implement an approved spec | "Spec approved, go ahead" |
 | `finalize` | Gate lane: defects, cuts, fresh checks, report | "Wrap it up" |
 | `diagnose` | The cause of a failure is unknown | "The export crashes, I do not know why" |
