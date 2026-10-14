@@ -1,5 +1,10 @@
 # Changelog
 
+## 6.1.1
+
+- `spar` has a new step 6 for confirmed decisions. A decision that is hard to reverse and beat a real alternative gets an offer. The offer is an ADR in `docs/adr/`, in the format of `architecture` step 6. `spar` writes it only on `yes`. It says nothing about ADRs for other decisions. The word cap of `spar` is now 420.
+- Evals: new `spar-adr` and `spar-no-adr`. A confirmed database choice gets the offer and no file yet. A confirmed button label gets no offer.
+
 ## 6.1.0
 
 - New user-only `spar`: an interview in numbered rounds, started with `/spar`. Each round asks every decision that is ready, with a recommended answer that `yes` accepts. It asks in the message, not with `AskUserQuestion`, and `wrap up` ends it.

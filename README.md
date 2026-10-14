@@ -86,7 +86,7 @@ Put rules you want in every session in `~/.claude/rules/`. Claude Code loads tho
 | Skill | Job |
 |---|---|
 | `spec` | On `/spec` or a denied risky edit: goals first, then `specs/current.md`, then one approval |
-| `spar` | `/spar`: interview in numbered rounds, each question with a recommended answer, until no decision is open. User call only |
+| `spar` | `/spar`: interview in numbered rounds, each question with a recommended answer, until no decision is open. Offers an ADR in `docs/adr/` for a confirmed decision that is hard to reverse. User call only |
 | `build` | Gate lane: implement the approved spec with the least code that works |
 | `finalize` | Gate lane: defects, cuts, fresh checks (once per code state), honest report |
 | `diagnose` | Only when the cause is unknown: a failing loop first, then ranked causes, then the root cause |
@@ -123,7 +123,7 @@ claude plugin validate .
 
 ## Evals
 
-`evals/` holds a suite for `claude plugin eval`: 19 cases, each a prompt in a small test repo. It checks that each skill loads on the right request and does its job. It also runs each case without the plugin, so the Δ column shows what the plugin adds.
+`evals/` holds a suite for `claude plugin eval`: 21 cases, each a prompt in a small test repo. It checks that each skill loads on the right request and does its job. It also runs each case without the plugin, so the Δ column shows what the plugin adds.
 
 ```
 claude plugin eval . --scaffold --trust-plugin --threshold 0.66 -j 4 --no-publish --max-cost-usd 60 --allow-tools Write Edit Bash
@@ -133,9 +133,9 @@ claude plugin eval . --scaffold --trust-plugin --threshold 0.66 -j 4 --no-publis
 - A Bash grant needs the Claude Code sandbox: `bubblewrap` and `socat` on Linux and WSL2. Native Windows has no sandbox, so use WSL2.
 - `--no-publish` keeps the report on your machine. Without it, a claude.ai account uploads the report, with the prompts and the grader results, as a private artifact.
 - `--scaffold` runs `evals/fixture.sh` to build each test repo. Put `--allow-tools` last, because it takes a list.
-- A full run is 114 agent runs. On a subscription, this uses your plan limits. To try one case: `claude plugin eval . --case spec-first --runs 1 --ablation none --scaffold --trust-plugin --no-publish --allow-tools Write Edit`.
+- A full run is 126 agent runs. On a subscription, this uses your plan limits. To try one case: `claude plugin eval . --case spec-first --runs 1 --ablation none --scaffold --trust-plugin --no-publish --allow-tools Write Edit`.
 - The graders are free checks: regex, tool calls and files. They show if a skill loads and does its job, not if its advice is good.
-- Read Δ only for cases with a result check. `architecture`, `distributed-architecture`, `deep-review` and `which` check only that the skill runs, so their Δ is always 1.00. `module-design` checks only that a reference file is read. `spar-rounds`, `debt-ledger` and `handoff-file` start with a slash command that only the plugin arm has, so read their score with the plugin, not their Δ.
+- Read Δ only for cases with a result check. `architecture`, `distributed-architecture`, `deep-review` and `which` check only that the skill runs, so their Δ is always 1.00. `module-design` checks only that a reference file is read. `spar-rounds`, `spar-adr`, `spar-no-adr`, `debt-ledger` and `handoff-file` start with a slash command that only the plugin arm has, so read their score with the plugin, not their Δ.
 - Results go to `evals/results/`, which git ignores.
 
 ## Credits

@@ -9,7 +9,7 @@
       "name": "ras",
       "source": "./",
       "description": "Work normally by default. A spec you approve for risky paths or on /spec, a hook that locks risky paths until you do, and 13 small skills to spar, build, diagnose, review and hand off work.",
-      "version": "6.1.0",
+      "version": "6.1.1",
       "author": {
         "name": "MagicJosh"
       }
