@@ -76,7 +76,7 @@ Breaking. The plugin and two skills have new names. Reinstall the plugin, see RE
 ## 3.1.0
 
 - The `spec-gate` hook gives the agent a 4-line reminder of the spec flow at every session start, resume and compaction. Only startup and `/clear` end an approval, as before.
-- New user-only skill `rules`: `/rules` installs the ponytail coding rules as `~/.claude/rules/ponytail.md`. It never overwrites without asking.
+- New user-only skill `rules`: `/rules` installs the coding rules in `~/.claude/rules/`. It never overwrites without asking.
 - README: put always-on personal rules in `~/.claude/rules/`, not `~/AGENTS.md`, which Claude Code skips when a `CLAUDE.md` exists.
 
 ## 3.0.0
