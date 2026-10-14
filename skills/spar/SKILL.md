@@ -13,8 +13,8 @@ Interview the user until you both agree on every decision that changes what gets
 1. Read the request and the code it touches. List the open decisions. Some decisions depend on others. A decision is ready when every decision it depends on is settled.
 2. Ask every ready decision in one round. Number the questions. Give your recommended answer for each, worded so that `yes` accepts it. Use this format:
 
-   **Q1. <short title>**
-   <the question, with the options when there are options>
+   **Q1. <the question>?**
+   <the context, and the options when there are options>
    Recommended: <your answer, with a one-line reason>
 
 3. End the round with this line: "Reply `yes` to take every recommendation, or answer by number." Then stop and wait.
