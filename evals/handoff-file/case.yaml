@@ -9,9 +9,9 @@ execution:
   allowed_tools: [Read, Glob, Grep, Skill, Write, Bash]
 graders:
   - name: handoff-written
-    type: regex
-    target: trace
-    pattern: '\.ras/handoffs/20[0-9]{2}-'
+    type: tool_used
+    tool: Write
+    input_match: '\.ras/handoffs/20[0-9]{2}-'
     arm: with-only
   - name: handoffs-ignored
     type: regex

@@ -25,3 +25,12 @@ graders:
     type: regex
     pattern: '/(ras:)?spar\b'
     arm: with-only
+  - name: no-question-tool
+    type: tool_used
+    tool: AskUserQuestion
+    min: 0
+    max: 0
+  - name: round-format
+    type: regex
+    pattern: 'Recommended:'
+    arm: with-only

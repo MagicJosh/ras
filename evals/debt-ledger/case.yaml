@@ -28,3 +28,7 @@ graders:
     type: regex
     target: { source: file, path: report.py }
     pattern: 'shortcut: loads every row'
+  - name: cache-unchanged
+    type: regex
+    target: { source: file, path: cache.js }
+    pattern: 'shortcut: no eviction'
