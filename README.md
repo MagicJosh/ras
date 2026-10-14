@@ -31,7 +31,7 @@ claude plugin update ras@magicjosh
 
 In the gate lane:
 
-1. The agent loads `spec`. It asks only what is still unknown: the goal, who uses it, must-have versus nice-to-have, what is out of scope, constraints, and what done looks like. It asks in one round of multiple-choice questions (`AskUserQuestion`), or in its message when the tool is missing.
+1. The agent loads `spec`. It asks only what is still unknown: the goal, who uses it, must-have versus nice-to-have, what is out of scope, constraints, and what done looks like. It asks one round in plain text: numbered questions, with a recommended answer for each. Reply `yes` to accept all, or answer by number. Type `/spar` for a deeper round.
 2. When every question has an answer, it writes `specs/current.md`: Goal, Decisions, Proposed additions (details you did not ask for), criteria, non-goals, blast radius. It asks for approval once.
 3. You read the spec and reply with exactly `approve spec`. Reply `ask me` first to get questions on a spec that guessed.
 4. The agent loads `build`, implements the spec, then loads `finalize`: defects, cuts, fresh checks, report. `finalize` archives the spec to `specs/<date>-<slug>.md`, which ends the approval. It keeps the 5 newest archived specs.
@@ -71,7 +71,7 @@ Security review is not tied to paths. `security-check` should load in either lan
 
 ## The Decisions habit
 
-Every reply that changed code ends with a short `Decisions` section: the choices the agent made that you did not specify, or `none`. The session-start hint asks for it. As a fallback, the `Stop` hook checks whether the turn changed files (`git status`, so it needs a git repo) and the reply has no `Decisions` heading. If so, it asks once, with "touched N files". Binary files do not count. It never asks twice.
+Every reply that changed code ends with a short `Decisions` section: the choices the agent made that you did not specify, and what it skipped or did not check, or `none`. The session-start hint asks for it. As a fallback, the `Stop` hook checks whether the turn changed files (`git status`, so it needs a git repo) and the reply has no `Decisions` heading. If so, it asks once, with "touched N files". Binary files do not count. It never asks twice.
 
 When the agent asks you to approve a spec, the hook also shows you the spec's Decisions section.
 
@@ -81,24 +81,29 @@ At each session start, resume and compaction, the hook gives the agent a 5-line 
 
 Put rules you want in every session in `~/.claude/rules/`. Claude Code loads those files in every project, and they survive `/compact`. Do not rely on `~/AGENTS.md`: Claude Code reads an `AGENTS.md` only when no `CLAUDE.md` is in the working directory or above it, so most repositories hide it. Type `/rules` to install the lazy senior dev coding rules as `~/.claude/rules/lazy.md`. Keep always-on rules short: a study of repository context files found no general gain in task success and over 20% more cost ([Gloaguen et al., 2026](https://arxiv.org/abs/2602.11988)).
 
-## The 10 skills
+## The 13 skills
 
 | Skill | Job |
 |---|---|
 | `spec` | On `/spec` or a denied risky edit: goals first, then `specs/current.md`, then one approval |
+| `spar` | `/spar`: interview in numbered rounds, each question with a recommended answer, until no decision is open. User call only |
 | `build` | Gate lane: implement the approved spec with the least code that works |
 | `finalize` | Gate lane: defects, cuts, fresh checks (once per code state), honest report |
-| `diagnose` | Only when the cause is unknown: root cause, not symptom |
-| `architecture` | Styles, characteristics, trade-offs, fitness functions, ADRs |
+| `diagnose` | Only when the cause is unknown: a failing loop first, then ranked causes, then the root cause |
+| `architecture` | Styles, characteristics, trade-offs, fitness functions, ADRs, deep modules |
 | `distributed-architecture` | Service size, data ownership, distributed transactions, contracts |
 | `deep-review` | Strict maintainability review of messy code. Explicit request only |
 | `security-check` | Risky behavior in any lane: auth, permissions, secrets, payments, personal data, deletes |
+| `debt` | `/debt` lists every `shortcut:` comment as a ledger. User call only |
+| `handoff` | `/handoff` writes a handoff file to `.ras/handoffs/` for a fresh session or another agent. A `.gitignore` inside keeps it out of git. User call only |
 | `which` | `/which <task>` names the 1-2 skills to use. User call only |
 | `rules` | `/rules` installs the lazy senior dev rules in `~/.claude/rules/`. User call only |
 
-## Plan mode
+## Plan mode and other workflow plugins
 
 Claude Code has its own plan mode. It overlaps with `/spec`. Use one of them for a task, not both.
+
+Run one workflow plugin per session, not ras next to another one such as Superpowers. With two, the agent wavers between workflows, and their skills compete for the same requests.
 
 ## Off switch
 
@@ -118,7 +123,7 @@ claude plugin validate .
 
 ## Evals
 
-`evals/` holds a suite for `claude plugin eval`: 15 cases, each a prompt in a small test repo. It checks that each skill loads on the right request and does its job. It also runs each case without the plugin, so the Δ column shows what the plugin adds.
+`evals/` holds a suite for `claude plugin eval`: 19 cases, each a prompt in a small test repo. It checks that each skill loads on the right request and does its job. It also runs each case without the plugin, so the Δ column shows what the plugin adds.
 
 ```
 claude plugin eval . --scaffold --trust-plugin --threshold 0.66 -j 4 --no-publish --max-cost-usd 60 --allow-tools Write Edit Bash
@@ -128,15 +133,13 @@ claude plugin eval . --scaffold --trust-plugin --threshold 0.66 -j 4 --no-publis
 - A Bash grant needs the Claude Code sandbox: `bubblewrap` and `socat` on Linux and WSL2. Native Windows has no sandbox, so use WSL2.
 - `--no-publish` keeps the report on your machine. Without it, a claude.ai account uploads the report, with the prompts and the grader results, as a private artifact.
 - `--scaffold` runs `evals/fixture.sh` to build each test repo. Put `--allow-tools` last, because it takes a list.
-- A full run is 90 agent runs. On a subscription, this uses your plan limits. To try one case: `claude plugin eval . --case spec-first --runs 1 --ablation none --scaffold --trust-plugin --no-publish --allow-tools Write Edit`.
+- A full run is 114 agent runs. On a subscription, this uses your plan limits. To try one case: `claude plugin eval . --case spec-first --runs 1 --ablation none --scaffold --trust-plugin --no-publish --allow-tools Write Edit`.
 - The graders are free checks: regex, tool calls and files. They show if a skill loads and does its job, not if its advice is good.
-- Read Δ only for cases with a result check. `architecture`, `distributed-architecture`, `deep-review` and `which` check only that the skill runs, so their Δ is always 1.00.
+- Read Δ only for cases with a result check. `architecture`, `distributed-architecture`, `deep-review` and `which` check only that the skill runs, so their Δ is always 1.00. `module-design` checks only that a reference file is read. `spar-rounds`, `debt-ledger` and `handoff-file` start with a slash command that only the plugin arm has, so read their score with the plugin, not their Δ.
 - Results go to `evals/results/`, which git ignores.
 
 ## Credits
 
-- `build` is inspired by [ponytail](https://github.com/DietrichGebert/ponytail) by Dietrich Gebert (MIT). The text is original.
-- `skills/rules/references/lazy.md` is inspired by ponytail as well. The text is original.
 - `architecture` and `distributed-architecture` are original text. They draw on ideas from *Fundamentals of Software Architecture* by Mark Richards and Neal Ford, and *Software Architecture: The Hard Parts* by Neal Ford, Mark Richards, Pramod Sadalage and Zhamak Dehghani. Read the books for the full picture.
 
 ## License
