@@ -13,7 +13,7 @@ disable-model-invocation: true
 | `build` | Gate lane: implement an approved spec | "Spec approved, go ahead" |
 | `finalize` | Gate lane: defects, cuts, fresh checks, report | "Wrap it up" |
 | `diagnose` | The cause of a failure is unknown | "The export crashes, I do not know why" |
-| `architecture` | Choose a style, weigh trade-offs, write an ADR | "Monolith or modules for this app?" |
+| `architecture` | Styles, trade-offs, module interfaces, ADRs | "Monolith or modules for this app?" |
 | `distributed-architecture` | Split a system: service size, data ownership, transactions | "Should billing become its own service?" |
 | `deep-review` | Strict maintainability review of existing messy code | "Run a deep review of this module" |
 | `security-check` | A change touches auth, secrets, permissions, deletes or production | "Add an admin delete endpoint" |
@@ -21,6 +21,6 @@ disable-model-invocation: true
 | `handoff` | Pass the work to a fresh session or another agent. User call only | "/handoff" |
 | `rules` | Install the coding rules. User call only | "/rules" |
 
-A normal change needs no skill. The gate lane (risky path or `/spec`) runs `spec`, `build`, `finalize`.
+A normal change needs no skill. The gate lane (risky path or `/spec`) runs `spec`, `build`, `finalize`. For a diff review, use the built-in `/code-review`.
 
 Rule: answer with one or two skills and their order. Give one line of reason for each. Then stop. Make no edits.

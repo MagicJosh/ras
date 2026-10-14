@@ -1,11 +1,13 @@
 ---
 name: architecture
-description: Use when choosing or judging a software architecture, such as monolith vs modular monolith, architecture styles, characteristics, trade-offs, fitness functions, bounded contexts, or ADRs. Gives a decision workflow and trade-off checklists.
+description: Use when choosing or judging a software architecture or a module interface, such as monolith vs modular monolith, styles, trade-offs, fitness functions, seams, bounded contexts, or ADRs. Gives a decision workflow and trade-off checklists.
 ---
 
 # Architecture decisions
 
 Use this skill to pick or judge a system structure. Work through the seven steps in order. Write down the output of each step. Do not name a style before step 3.
+
+For the interface of a single module, skip the seven steps. Read `references/deep-modules.md` and follow it.
 
 ## 1. Find the driving characteristics
 
@@ -104,6 +106,7 @@ Read `references/decisions-and-risk.md` for the grid and the group method.
 - `references/characteristics.md`: read when you define or measure a characteristic in steps 1 and 5.
 - `references/decisions-and-risk.md`: read when you write an ADR or run a risk session in steps 6 and 7.
 - `references/monolith-vs-modular.md`: read when the question is whether to stay a monolith or become a modular monolith.
+- `references/deep-modules.md`: read when you design a module's interface, decide where a seam goes, or compare interface designs.
 
 ## Further reading
 
