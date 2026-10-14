@@ -20,6 +20,7 @@ Interview the user until you both agree on every decision that changes what gets
 3. End the round with this line: "Reply `yes` to take every recommendation, or answer by number." Then stop and wait.
 4. Read the answers and mark those decisions settled. Find the decisions that are ready now, and ask the next round. A question that depends on an answer from the current round waits for the next round.
 5. When no decision is open, list the decisions, one line each. Ask the user to confirm the list, and do not act on it before the user confirms.
+6. For a confirmed decision that is hard to reverse and beat a real alternative, offer to record it as an ADR in `docs/adr/`, in the format of `architecture` step 6. Write it only on yes. Say nothing about ADRs for other decisions.
 
 ## Rules
 

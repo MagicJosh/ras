@@ -1,0 +1,24 @@
+schema_version: "1.1"
+name: spar-adr
+description: After the user confirms a hard-to-reverse database choice, /ras:spar offers an ADR in docs/adr/ and writes nothing yet.
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: '/ras:spar Back to the orders feature. Your last round is answered and nothing is open. I confirm the list: 1. Orders live in Postgres, not DynamoDB, because an order and its payment must commit in one transaction. 2. The order API stays in this repo.'
+  max_turns: 15
+  allowed_tools: [Read, Glob, Grep, Skill, Write]
+graders:
+  - name: offers-adr
+    type: regex
+    pattern: '\bADR\b'
+    arm: with-only
+  - name: names-folder
+    type: regex
+    pattern: 'docs/adr'
+    arm: with-only
+  - name: waits-for-yes
+    type: tool_used
+    tool: Write
+    input_match: 'docs/adr'
+    min: 0
+    max: 0

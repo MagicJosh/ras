@@ -20,7 +20,7 @@ for s in spec build finalize diagnose architecture distributed-architecture deep
   [ "$keys" = "$want" ] || bad "$s: frontmatter keys are '$keys', want '$want'"
   case $s in which | rules | spar | debt | handoff) printf '%s\n' "$fm" | grep -qx 'disable-model-invocation: true' || bad "$s: needs disable-model-invocation: true" ;; esac
   grep -nE 'Hermes|Woshy|Igor|/home/|~/\.hermes' "$f" && bad "$s: names Hermes, Woshy, Igor or a local path"
-  case $s in spec | build | diagnose) cap=600 ;; finalize) cap=800 ;; spar) cap=400 ;; which | handoff) cap=320 ;; rules | debt) cap=250 ;; *) cap=0 ;; esac
+  case $s in spec | build | diagnose) cap=600 ;; finalize) cap=800 ;; spar) cap=420 ;; which | handoff) cap=320 ;; rules | debt) cap=250 ;; *) cap=0 ;; esac
   [ "$cap" = 0 ] || [ "$(wc -w < "$f")" -le "$cap" ] || bad "$s: over $cap words"
 done
 
