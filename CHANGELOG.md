@@ -1,5 +1,20 @@
 # Changelog
 
+## 6.1.0
+
+- New user-only `spar`: an interview in numbered rounds, started with `/spar`. Each round asks every decision that is ready, with a recommended answer that `yes` accepts. It asks in the message, not with `AskUserQuestion`, and `wrap up` ends it.
+- `spec` asks one round in plain text instead of one round of `AskUserQuestion`: numbered questions, a recommended answer for each, and `yes` accepts all. Then it offers `/spar` for a deeper round. It never calls `spar`.
+- New user-only `debt`: collects the `shortcut:` comments into one ledger and changes nothing. `/debt <word>` searches for another marker.
+- New user-only `handoff`: writes a handoff file (goal, state, decisions, open questions, next steps, pointers) to `.ras/handoffs/`, for a fresh session, a colleague or another agent. A `.ras/handoffs/.gitignore` that holds `*` keeps the files out of git, and the skill never edits your own `.gitignore`.
+- `diagnose`: a fast, deterministic failing loop before any theory, 2 to 4 ranked causes with predictions, tagged debug lines, redacted output, and a missing test seam reported as a design finding. The regression test must fail with the fix undone. The separate restart rule is gone, because step 1 already says that containment is not a fix.
+- `architecture`: new `references/deep-modules.md` (deep modules, the deletion check, seams, design it twice). A question about one module's interface skips the seven steps and uses that file. The description now names module interfaces and seams.
+- `build` and `lazy.md`: mark a deliberate shortcut with `shortcut: <limit>, upgrade when <trigger>`. `build` bans expected values that are computed the way the code computes them, and a bug-fix test must fail without the fix. `lazy.md` adds four rules: list every place the change must reach, finish the callers and tests it breaks, keep the structure of the codebase, and keep error handling in code you move. `lazy.md` grows from 1,387 to about 2,100 characters. `/rules` copies `lazy.md` once and never updates it, so run `/rules` again to get the new text, and say yes to the replacement.
+- `finalize`: each defect needs a concrete input or situation that breaks the code.
+- The `Decisions` section also names what the agent skipped or did not check. The session hint, the `Stop` fallback and `lazy.md` use the same words.
+- `which` and the README list 13 skills. The README says to run one workflow plugin per session.
+- Evals: new `spar-rounds`, `debt-ledger`, `handoff-file` and `module-design`. `spec-asks` and `spec-asks-mid` check that `spec` offers `/spar`.
+- `tests/check_skills.sh` fails when a listed skill is missing.
+
 ## 6.0.1
 
 The folder check. Before, `rm -rf .github` and `rm -rf supabase` passed, because only the files inside them are risky.
