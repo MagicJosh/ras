@@ -38,6 +38,9 @@ jobs:
       - name: Check the skills
         run: sh tests/check_skills.sh
 
+      - name: Check the artifacts skill (parts, spec page, lint)
+        run: node skills/artifacts/check.mjs
+
   hook-tests:
     name: Hook tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

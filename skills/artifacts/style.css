@@ -1,0 +1,121 @@
+/* artifacts skill house look. Inline all of it into the page's <style>, first; parts.css sections go after it.
+   Fonts (put in the file's top lines, after the title tag and the viewport-fit-sides meta):
+   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+   Page frame: <div class="wrap"><header>.eyebrow, h1, p.lede, .meta</header> h2 + p.sub + content ... <footer>sources</footer></div> */
+
+:root {
+  color-scheme: light;
+  --bg: #f5f3ec; --panel: #fffdf8; --line: #e0dccf; --line-strong: #c9c4b4; --hover: #ece8dd;
+  --text: #23231e; --muted: #66655b; --faint: #8f8d81;
+  --clay: #b9583a; --teal: #1a8079;
+  --pill: #fffdf8f0; --shadow: #2a261833;
+  /* data colors: job or machine states, and chart series. Use them for data only, never for page chrome. */
+  --st-active: #1a8079; --st-paused: #b07d12; --st-flagged: #c0392b; --st-idle: #8f8d81;
+  /* series pass the dataviz palette checks (light and dark, on --panel and --bg); re-run them after any change:
+     node <dataviz>/scripts/validate_palette.js "<--s1..--s6 hexes>" --mode light --surface "#fffdf8" (then --mode dark) */
+  --s1: #0f928a; --s2: #b9583a; --s3: #4f6fb0; --s4: #b07d12; --s5: #8a4fa8; --s6: #5d7a2e;
+  /* heatmap scale, one hue, low to high (dark flips: high is brighter). Text on --q1..--q3 is --text, on --q4/--q5 --panel */
+  --q1: #cff0ec; --q2: #9ed8d2; --q3: #66bcb4; --q4: #109088; --q5: #026c66;
+  /* the terminal mock stays dark in both themes: terminal colors are made for a dark background */
+  --term: #272822; --term-bar: #1f201b; --term-line: #33352d; --term-fg: #f8f8f2; --term-faint: #6b6c62;
+  --term-edge: #00000055; --term-dot: #3a3b34; --term-accent: #d97757;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: Consolas, "Cascadia Mono", "JetBrains Mono", Menlo, monospace;
+  --tfs: 13.5px; --lh: 1.35;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #151612; --panel: #1d1e19; --line: #33352d; --line-strong: #4b4d43; --hover: #33352d;
+    --text: #e6e4da; --muted: #9a9a8e; --faint: #6b6c62;
+    --clay: #d97757; --teal: #4ecdc4;
+    --pill: #23241ef2; --shadow: #000;
+    --st-active: #4ecdc4; --st-paused: #e0b44c; --st-flagged: #ef6f5e; --st-idle: #6b6c62;
+    --s1: #0fa69e; --s2: #d37252; --s3: #708fd2; --s4: #b48a10; --s5: #ad78c8; --s6: #7b9f38;
+    --q1: #11403d; --q2: #0f5c57; --q3: #027972; --q4: #22aba1; --q5: #45d3c8;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #151612; --panel: #1d1e19; --line: #33352d; --line-strong: #4b4d43; --hover: #33352d;
+  --text: #e6e4da; --muted: #9a9a8e; --faint: #6b6c62;
+  --clay: #d97757; --teal: #4ecdc4;
+  --pill: #23241ef2; --shadow: #000;
+  --st-active: #4ecdc4; --st-paused: #e0b44c; --st-flagged: #ef6f5e; --st-idle: #6b6c62;
+  --s1: #0fa69e; --s2: #d37252; --s3: #708fd2; --s4: #b48a10; --s5: #ad78c8; --s6: #7b9f38;
+  --q1: #11403d; --q2: #0f5c57; --q3: #027972; --q4: #22aba1; --q5: #45d3c8;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 var(--sans); }
+/* the side gutter in the exact form the viewport-fit-sides meta promises; vertical padding only via padding-block */
+.wrap { max-width: 1120px; margin: 0 auto; padding-block: 0 96px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header { padding: 48px 0 28px; }
+.eyebrow { font: 600 11.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--clay); }
+h1 { font-weight: 600; font-size: clamp(26px, 4.4vw, 38px); line-height: 1.15; letter-spacing: -.01em; margin: 14px 0 12px; max-width: 22ch; text-wrap: balance; }
+.lede { color: var(--muted); max-width: 64ch; margin: 0; }
+.lede b { color: var(--text); font-weight: 500; }
+/* status line under the lede: <div class="meta"><span class="badge">status</span><span>2 Nov 2026</span>...</div> */
+.meta { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-top: 18px; font: 12.5px var(--mono); color: var(--faint); }
+h2 { font-size: 13px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 56px 0 6px; }
+h2 + p.sub { color: var(--faint); margin: 0 0 18px; font-size: 14px; max-width: 72ch; }
+h3 { margin: 0; font-size: 24px; font-weight: 600; }
+code, kbd { font-family: var(--mono); font-size: .9em; }
+kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; color: var(--text); }
+pre { margin: 0; font: 12.5px/1.5 var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* sources and as-of date, last thing on every page: <footer>Sources: <code>file</code>, ... As of 2 Nov 2026.</footer> */
+footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--faint); }
+
+/* cards: a grid of panels with a small uppercase heading */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.card { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+.card h4 { margin: 0 0 8px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.card ul { margin: 0; padding-left: 18px; }
+.card li + li { margin-top: 6px; }
+.card p { margin: 0; }
+.card p + p, .card p + pre, .card pre + p { margin-top: 8px; }
+.note { color: var(--muted); font-size: 14px; }
+.badge { font: 700 13px var(--mono); color: var(--bg); background: var(--clay); border-radius: 5px; padding: 2px 8px; white-space: nowrap; }
+
+/* controls */
+.btn { font: 500 13px var(--sans); color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; min-height: 36px; }
+.btn:hover { border-color: var(--line-strong); }
+:focus-visible { outline: 2px solid var(--clay); outline-offset: 2px; }
+input[type=range] { accent-color: var(--clay); }
+
+/* terminal mock: .term > .bar + .scr > .screen; fill .screen with CrispTerm.render() */
+.term { background: var(--term); border: 1px solid var(--term-line); border-radius: 10px; overflow: hidden; box-shadow: 0 24px 60px -30px var(--shadow); }
+.bar { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--term-edge); background: var(--term-bar); font: 12px var(--mono); color: var(--term-faint); }
+.bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--term-dot); display: inline-block; }
+.bar .ttl { margin-left: 8px; }
+.bar .tag { margin-left: auto; color: var(--term-accent); }
+.scr { overflow-x: auto; padding: 14px 16px 16px; container-type: inline-size; }
+/* --cols columns fill the panel; below the font floor the screen scrolls sideways instead */
+.screen { --cols: 100; font: clamp(var(--tfs), calc(100cqw / (var(--cols) * .57)), 15.5px)/var(--lh) var(--mono); color: var(--term-fg); width: calc(var(--cols) * 1ch); }
+.row { display: flex; white-space: pre; height: calc(var(--lh) * 1em); line-height: var(--lh); }
+.row span { flex: none; }
+.row .c { display: inline-block; width: 1ch; text-align: center; overflow: hidden; }
+.row .b { font-weight: 700; } .row .d { opacity: .6; } .row .i { font-style: italic; } .row .u { text-decoration: underline; }
+.mini { display: block; width: 100%; text-align: left; background: var(--term); border: 1px solid var(--term-line); border-radius: 8px; padding: 0; color: var(--term-fg); font: inherit; }
+button.mini { cursor: pointer; }
+.mini.on { border-color: var(--term-accent); }
+.mini .lbl { display: flex; gap: 10px; align-items: baseline; padding: 8px 14px 0; font-size: 13px; color: var(--term-faint); }
+.mini .lbl b { font-weight: 600; color: var(--term-fg); }
+.mini .scr { padding: 6px 14px 10px; }
+
+/* floating pill switcher at the bottom: ← name + dots → */
+.sw { position: fixed; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; align-items: center; gap: 4px; background: var(--pill); border: 1px solid var(--line-strong); border-radius: 999px; padding: 5px; box-shadow: 0 12px 40px -10px var(--shadow); backdrop-filter: blur(6px); z-index: 10; max-width: calc(100vw - 32px); }
+.sw button { width: 40px; height: 40px; border-radius: 50%; border: 0; background: transparent; color: var(--text); font-size: 18px; cursor: pointer; }
+.sw button:hover { background: var(--hover); }
+.sw .now { min-width: 150px; text-align: center; font: 500 14px var(--sans); padding: 0 6px; }
+.sw .now b { font-family: var(--mono); color: var(--clay); margin-right: 6px; }
+.sw .dots { display: flex; gap: 5px; justify-content: center; margin-top: 3px; }
+.sw .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--line-strong); }
+.sw .dots i.on { background: var(--clay); }
+
+@media (max-width: 760px) {
+  :root { --tfs: 11.5px; }
+  header { padding-top: 32px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

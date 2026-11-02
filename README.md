@@ -81,7 +81,7 @@ At each session start, resume and compaction, the hook gives the agent a 5-line 
 
 Put rules you want in every session in `~/.claude/rules/`. Claude Code loads those files in every project, and they survive `/compact`. Do not rely on `~/AGENTS.md`: Claude Code reads an `AGENTS.md` only when no `CLAUDE.md` is in the working directory or above it, so most repositories hide it. Type `/rules` to install the lazy senior dev coding rules as `~/.claude/rules/lazy.md`. Keep always-on rules short: a study of repository context files found no general gain in task success and over 20% more cost ([Gloaguen et al., 2026](https://arxiv.org/abs/2602.11988)).
 
-## The 13 skills
+## The 14 skills
 
 | Skill | Job |
 |---|---|
@@ -93,6 +93,7 @@ Put rules you want in every session in `~/.claude/rules/`. Claude Code loads tho
 | `architecture` | Styles, characteristics, trade-offs, fitness functions, ADRs, deep modules |
 | `distributed-architecture` | Service size, data ownership, distributed transactions, contracts |
 | `deep-review` | Strict maintainability review of messy code. Explicit request only |
+| `artifacts` | The house look for HTML Artifact pages: parts, accuracy rules, a page lint, and the spec page that `spec` publishes |
 | `security-check` | Risky behavior in any lane: auth, permissions, secrets, payments, personal data, deletes |
 | `debt` | `/debt` lists every `shortcut:` comment as a ledger. User call only |
 | `handoff` | `/handoff` writes a handoff file to `.ras/handoffs/` for a fresh session or another agent. A `.gitignore` inside keeps it out of git. User call only |
@@ -118,6 +119,7 @@ In a repo's `.claude/settings.local.json`:
 ```
 sh tests/test_spec_gate.sh
 sh tests/check_skills.sh
+node skills/artifacts/check.mjs
 claude plugin validate .
 ```
 

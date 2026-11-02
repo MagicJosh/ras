@@ -1,0 +1,310 @@
+/* artifacts skill parts: page components (example.html composes the ones a spec page uses) and the
+   data parts shown in gallery.html. Inline after style.css, and only the sections the page uses (keep "tags", the
+   others need it). Colors come from style.css tokens; data colors from its data tokens (--st-*, --s1..--s6, --q1..--q5). */
+
+/* ---------- tags ----------
+   <span class="chip">host = web-3</span>          a small mono tag: a filter value, a source name
+   <span class="ex">example values</span>       marks made-up values; put it on every block that holds them
+   <span class="st warn">paused</span>          a state: icon shape + word, so color is never the only signal
+                                                tones: ok ●  warn ▲  crit ■  off ○  unknown ? (no data, dashed)
+   <span class="st i crit"><span class="vh">alarm</span></span>   the icon alone; the word stays for screen readers
+   <span class="cm warn"><i style="width:74%"></i><b style="left:80%"></b></span>   a small meter, a tick per limit
+   <span class="vh">read aloud only</span>      visually hidden text
+   <span class="na">no data</span>              a missing value, said in words */
+.chip { font: 11px/1.5 var(--mono); color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; background: var(--bg); }
+.ex { font: 600 10.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--clay); border: 1px solid var(--clay); border-radius: 4px; padding: 0 5px; white-space: nowrap; }
+.ok { --tone: var(--st-active); } .warn { --tone: var(--st-paused); } .crit { --tone: var(--st-flagged); } .off, .unknown { --tone: var(--st-idle); }
+.st { display: inline-flex; align-items: center; gap: 5px; font: 600 11px/1.6 var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 0 6px 0 5px; white-space: nowrap; vertical-align: middle; }
+.st::before { content: "●"; content: "●" / ""; color: var(--tone, var(--st-active)); font-size: 9px; }
+.st.warn::before { content: "▲"; content: "▲" / ""; }
+.st.crit::before { content: "■"; content: "■" / ""; }
+.st.off::before { content: "○"; content: "○" / ""; }
+.st.unknown { border-style: dashed; color: var(--muted); }
+.st.unknown::before { content: "?"; content: "?" / ""; color: var(--muted); font-size: 11px; }
+.st.i { border: 0; padding: 0; margin-left: 6px; }
+.cm { position: relative; display: inline-block; width: 56px; height: 6px; border-radius: 3px; background: var(--line); vertical-align: middle; margin-left: 8px; }
+.cm > i { display: block; height: 100%; max-width: 100%; border-radius: 3px; background: var(--tone, var(--st-active)); }
+.cm > b { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--text); }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.na { color: var(--muted); font-style: italic; }
+
+/* ---------- stage strip: a process in a few stages, left to right, stacked on phones ----------
+   <div class="pipe">
+     <div class="card stage"><div class="k">1 · writes</div><div class="t">Build service</div><p class="note">...</p>
+       <div class="files"><div class="f"><span>app.db</span><span>forever</span></div></div></div>
+     <div class="arrow" aria-hidden="true">→</div>
+     <div class="card stage hl">...the stage this job changes...</div>
+   </div> */
+.pipe { display: flex; align-items: stretch; }
+.pipe > .stage { flex: 1 1 0; min-width: 0; }
+.pipe > .arrow { flex: 0 0 28px; display: grid; place-items: center; color: var(--line-strong); font: 18px var(--mono); }
+.stage .k { font: 600 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+.stage .t { font-weight: 600; margin: 4px 0 6px; }
+.stage .files { display: grid; gap: 6px; margin-top: 8px; }
+.stage .f { display: flex; justify-content: space-between; gap: 8px; font: 12.5px var(--mono); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; background: var(--bg); }
+.stage .f span:last-child { color: var(--faint); }
+.stage.hl { border-color: var(--clay); }
+@media (max-width: 860px) {
+  .pipe { flex-direction: column; }
+  .pipe > .stage { flex: none; }
+  .pipe > .arrow { transform: rotate(90deg); }
+}
+
+/* ---------- link map: sources left, their users right, curves between; built by linkmap.js ----------
+   <div class="legend"><span><i></i>built now</span><span><i class="dash"></i>planned after</span><span><i class="hot"></i>the one you point at</span></div>
+   <div class="map" id="map"></div>      then CrispMap.mount(...). Below 820px the curves hide and the chips carry the links. */
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+.legend i { display: inline-block; width: 26px; height: 0; border-top: 2px solid var(--line-strong); vertical-align: middle; margin-right: 6px; }
+.legend i.dash { border-top-style: dashed; }
+.legend i.hot { border-color: var(--clay); }
+.map { position: relative; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.15fr); column-gap: clamp(70px, 11vw, 150px); align-items: start; }
+.map svg.links { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.links path { fill: none; stroke: var(--line-strong); stroke-width: 1.2; opacity: .55; transition: opacity .15s, stroke .15s; }
+.links path.later { stroke-dasharray: 4 4; }
+.links path.on { stroke: var(--clay); stroke-width: 2; opacity: 1; }
+.map.focus .links path:not(.on) { opacity: .12; }
+.map > .col { display: grid; gap: 18px; min-width: 0; position: relative; z-index: 1; }
+.map .group { display: grid; gap: 6px; }
+.ghead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 0 2px 2px; }
+.ghead b { font: 700 13.5px var(--mono); }
+.ghead span { font-size: 12px; color: var(--faint); text-align: right; }
+.dhead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; padding: 0 2px 2px; }
+.dhead b { font-weight: 600; font-size: 15px; }
+.dhead span { font: 11.5px var(--mono); color: var(--faint); }
+.node { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 11px 8px; cursor: default; transition: opacity .15s, border-color .15s; min-width: 0; }
+.node .n { font-weight: 500; font-size: 14px; line-height: 1.35; }
+.node .d { font-size: 12.5px; color: var(--muted); line-height: 1.4; margin-top: 1px; }
+.node .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.node.later { border-style: dashed; }
+.node.later .n::after { content: "later"; font: 600 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; margin-left: 8px; vertical-align: 2px; }
+.node.off { opacity: .55; border-style: dotted; }
+.node.off .n::after { content: "not shown"; font: 600 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin-left: 8px; }
+.map.focus .node:not(.on) { opacity: .3; }
+.node.on { border-color: var(--clay); }
+@media (max-width: 819px) {
+  .map { grid-template-columns: minmax(0,1fr); row-gap: 28px; }
+  .map svg.links { display: none; }
+}
+
+/* ---------- panel grid: panels on 12 columns (span4 = a third); tablets widen them, phones stack them ----------
+   <div class="gd">
+     <section class="panel span8">
+       <div class="ph"><h3>Jobs per hour, per rack</h3><span class="pu">jobs / h</span><span class="ex">example values</span>
+         <span class="ps">Job log</span></div>      title, its unit, the example tag if made up, the source on the right
+       ...a chart, table, tiles or heatmap...<div class="cap">One sentence on what it shows.</div></section>
+   </div>   The mock dashboard below draws its sketch on this same grid. */
+.gd { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); gap: 12px; }
+.span2 { grid-column: span 2; } .span3 { grid-column: span 3; } .span4 { grid-column: span 4; } .span5 { grid-column: span 5; } .span6 { grid-column: span 6; } .span7 { grid-column: span 7; } .span8 { grid-column: span 8; } .span9 { grid-column: span 9; } .span12 { grid-column: span 12; }
+@media (max-width: 1000px) {
+  .gd > .span2 { grid-column: span 4; }
+  .gd > .span3, .gd > .span4 { grid-column: span 6; }
+  .gd > .span5, .gd > .span7, .gd > .span8, .gd > .span9 { grid-column: span 12; }
+}
+@media (max-width: 760px) { .gd > *, .gd > [class] { grid-column: span 12; } }  /* [class] outranks the tablet rules */
+.panel { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px 16px; }
+.ph { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 10px; }
+.ph h3 { margin: 0; font-size: 14.5px; font-weight: 600; line-height: 1.35; }
+.ph .pu { font: 11.5px var(--mono); color: var(--muted); }
+.ph .ps { margin-left: auto; font: 11px var(--mono); color: var(--muted); }
+
+/* ---------- mock dashboard: a sketch of a screen on the panel grid, one column on phones ----------
+   <div class="mock"><div class="mbar"><b>Overview</b><span class="ex">example values</span><span class="r">last 24 h · refresh 30 s</span></div>
+     <div class="gd">
+       <div class="gp span4"><div class="gt">Panel title <span>its source</span></div>
+         <div class="big ok">RUNNING</div><div class="small">detail line</div></div>
+       <div class="gp span2">... <div class="meter"><i style="width:74%"></i></div></div>
+       <div class="gp span4"><table class="codes"><tr><td>Queue-2-stalled</td><td>14:02</td></tr></table></div>
+     </div></div> */
+.mock { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.mock + .mock { margin-top: 18px; }
+.mock .gd { gap: 8px; }
+.mbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 2px 4px 10px; border-bottom: 1px solid var(--line); margin-bottom: 10px; }
+.mbar b { font-weight: 600; }
+.mbar .r { margin-left: auto; font: 11.5px var(--mono); color: var(--faint); }
+.gp { min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px 10px; }
+.gp .gt { font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 6px; display: flex; justify-content: space-between; gap: 8px; }
+.gp .gt span { font: 10.5px var(--mono); color: var(--faint); white-space: nowrap; }
+.big { font-size: 26px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.big.ok { color: var(--st-active); }
+.small { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+.codes { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.codes td { padding: 4px 0; border-top: 1px solid var(--line); }
+.codes tr:first-child td { border-top: 0; }
+.codes td:first-child { font-family: var(--mono); color: var(--st-flagged); }
+.codes td:last-child { text-align: right; color: var(--faint); font-family: var(--mono); }
+.meter { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; margin-top: 10px; }
+.meter > i { display: block; height: 100%; background: var(--st-paused); }
+
+/* ---------- cell grid: a table of cells with a state stripe, scrolls sideways on phones ----------
+   <div class="cells"><table><tr><th></th><th>A</th>...</tr>
+     <tr><th class="rl">Rack 1<small>4.2 kW</small></th>
+       <td><div class="cell paused" title="A1 · paused"><b>A1</b><span class="sr">X-14</span><span class="cy">23,104</span></div></td>...</tr></table></div>
+   <div class="keys"><span><i style="background:var(--st-active)"></i>active</span>...</div>
+   States: (none) = active, .paused, .flagged, .inactive. Say the state in text too (title), not only by color. */
+.cells { overflow-x: auto; }
+.cells table { border-collapse: separate; border-spacing: 4px; width: 100%; min-width: 420px; font-variant-numeric: tabular-nums; }
+.cells th { font: 600 11px var(--mono); color: var(--faint); }
+.cells th.rl { text-align: left; white-space: nowrap; padding-right: 4px; }
+.cells th.rl small { display: block; font: 10px var(--sans); color: var(--faint); }
+.cell { border-radius: 5px; padding: 4px 6px 5px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--st-active); line-height: 1.25; }
+.cell b { font: 700 12px var(--mono); }
+.cell .sr { font: 11px var(--mono); color: var(--faint); margin-left: 4px; }
+.cell .cy { display: block; font-size: 12px; }
+.cell.paused { border-left-color: var(--st-paused); }
+.cell.flagged { border-left-color: var(--st-flagged); }
+.cell.inactive { border-left-color: var(--st-idle); }
+.keys { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.keys i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+
+/* ---------- stat tiles: one value against its limits; the row wraps, two to a row on a phone ----------
+   <div class="tiles" id="kpi"></div>    CrispData.tiles('kpi', [...]) writes them (data.js). By hand:
+   <div class="tile warn"><div class="tl"><span>Disk used</span><span class="src">8a</span></div>
+     <div class="tv">74<small>%</small></div><div class="tm"><span class="st warn">warn</span><span>warn ≥ 80 %</span></div></div>
+   A missing reading is .tile.unknown reading "no data", never a 0. Values keep proportional figures. */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 164px), 1fr)); gap: 10px; }
+.tile { min-width: 0; display: grid; gap: 5px; align-content: start; background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--tone, var(--line)); border-radius: 8px; padding: 10px 12px 12px; }
+.tile.unknown { border-style: dashed; border-top-style: solid; }
+.tile .tl { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; font-size: 12.5px; font-weight: 500; color: var(--muted); }
+.tile .src { font: 11px var(--mono); color: var(--muted); }
+.tile .tv { font: 600 28px/1.15 var(--sans); letter-spacing: -.01em; }
+.tile .tv small { font-size: 14px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+.tile.unknown .tv { font-size: 20px; font-weight: 500; color: var(--muted); padding: 4px 0 3px; }
+.tile .cm { display: block; width: auto; margin: 4px 0 3px; }
+.tile .tm { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 12px; color: var(--muted); }
+.tile .td { font: 12px var(--mono); color: var(--muted); }
+.td .ar.good { color: var(--st-active); } .td .ar.bad { color: var(--st-flagged); }
+
+/* ---------- data table: units in headers, right-aligned numbers, sort, groups; scrolls inside its own box ----------
+   <div id="t-diag"></div>    CrispData.table('t-diag', {...}) fills it and makes it the scroll box (data.js).
+   The header and the row header column stay put while the box scrolls; a long table scrolls inside 70vh. */
+.dtbox { overflow: auto; max-height: min(70vh, 640px); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.dt { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
+.dt caption, .heat caption { caption-side: top; text-align: left; padding: 10px 12px 8px; }
+.heat caption { padding: 0 0 8px; }
+.ct { font-weight: 600; }
+.cs { display: block; font: 11.5px var(--mono); color: var(--muted); margin-top: 2px; }
+.dt th, .dt td { padding: 6px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+.dt thead th { position: sticky; top: 0; z-index: 2; background: var(--panel); font: 600 12px/1.3 var(--sans); color: var(--muted); vertical-align: bottom; border-bottom-color: var(--line-strong); }
+.dt .u { display: block; font: 400 11px var(--mono); color: var(--muted); }
+.dt th button { font: inherit; color: inherit; text-align: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.dt th button:hover { color: var(--text); }
+.dt .si { margin-left: 4px; font-size: 9px; color: var(--clay); }
+.dt th[aria-sort] { color: var(--text); }
+.dt .n { text-align: right; font-variant-numeric: tabular-nums; }
+.dt .m { font-family: var(--mono); font-size: 12.5px; }
+.dt tbody th { position: sticky; left: 0; z-index: 1; background: var(--panel); font-weight: 500; }
+.dt tbody tr:hover > * { background: var(--hover); }
+.dt tr.hl > * { background: var(--hover); font-weight: 600; }
+.dt tr.hl > :first-child { box-shadow: inset 3px 0 var(--clay); }
+.dt tr.grp th { background: var(--bg); font: 600 11.5px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.dt tfoot > tr > * { font-weight: 600; border-top: 1px solid var(--line-strong); border-bottom: 0; }
+.dt .spark { margin: -4px 0; }
+
+/* ---------- spec table: a thing's fixed facts as key/value pairs, two columns of pairs when there is room ----------
+   <dl class="spec"><div><dt>Node.js</dt><dd>22.11.0</dd></div><div><dt>Rack 1 power</dt><dd>4.2 <small>kW</small></dd></div>
+     <div><dt>Heartbeat limit</dt><dd class="unk">not checked</dd></div></dl> */
+.spec { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); column-gap: 28px; margin: 0; }
+.spec > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; min-width: 0; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.spec dt { font-size: 13.5px; color: var(--muted); }
+.spec dd { margin: 0; font: 13px var(--mono); text-align: right; overflow-wrap: anywhere; }
+.spec dd small { font-size: 11.5px; color: var(--muted); }
+.spec dd.unk { font: italic 13px var(--sans); color: var(--muted); }
+
+/* ---------- heatmap: one value per cell on a one-hue scale, --q1 low to --q5 high, with a legend ----------
+   <div id="heat"></div>    CrispData.heat('heat', {...}) (data.js). Every cell prints its value, so the color only
+   helps the eye find highs and lows. A cell without data is hatched and says "no data". Scrolls inside its box. */
+.heat { overflow-x: auto; }
+.heat table { border-collapse: separate; border-spacing: 3px; font-variant-numeric: tabular-nums; }
+.heat th { font: 600 11px var(--mono); color: var(--muted); }
+.heat tbody th { text-align: left; white-space: nowrap; padding-right: 6px; }
+.heat th small { display: block; font: 10.5px var(--sans); color: var(--muted); }
+.heat td { min-width: 62px; border-radius: 5px; padding: 4px 7px 5px; line-height: 1.25; font-size: 12.5px; font-weight: 600; color: var(--text); }
+.heat td b { display: block; font: 700 11px var(--mono); }
+.q1 { background: var(--q1); } .q2 { background: var(--q2); } .q3 { background: var(--q3); } .q4 { background: var(--q4); } .q5 { background: var(--q5); }
+.heat .q4, .heat .q5 { color: var(--panel); }
+.heat td.na, .hk i.na { background: repeating-linear-gradient(45deg, var(--line) 0 2px, transparent 2px 6px); }
+.heat td.na { color: var(--muted); font-weight: 400; font-style: italic; box-shadow: inset 0 0 0 1px var(--line-strong); }
+.heat td.hl { outline: 2px solid var(--clay); outline-offset: 1px; }
+.hk { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.hk i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+
+/* ---------- charts: line, step, range, bars and sparklines, drawn by chart.js at the panel's real width ----------
+   <svg class="ch" id="ch-rate" viewBox="0 0 420 230" role="img" aria-label="what the data shows"></svg>
+   <div class="cap">One sentence on what the drawn data does.</div>
+   <details class="tv"><summary>Show the numbers</summary><div id="ch-rate-t"></div></details>   the table twin
+   The viewBox height is the drawn height; the width follows the panel, so text stays its real size on a phone. */
+svg.ch { width: 100%; height: auto; display: block; overflow: visible; touch-action: pan-y; }
+svg.ch .ax { stroke: var(--line); stroke-width: 1; }
+svg.ch text { fill: var(--muted); font: 10.5px var(--mono); }
+svg.ch .ln { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+svg.ch .rng { opacity: .16; }
+svg.ch .band { opacity: .1; }
+svg.ch .lim { stroke: var(--text); stroke-width: 1; stroke-dasharray: 5 4; opacity: .65; }
+svg.ch .ev { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
+svg.ch .key { fill: none; stroke-width: 2; stroke-linecap: round; }
+svg.ch .lbl, svg.ch .lg, svg.ch .vl { fill: var(--text); }
+svg.ch .lbl { font-weight: 600; }
+svg.ch .axl { font: 11.5px var(--sans); }
+svg.ch .halo { paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
+svg.ch .xh { stroke: var(--text); stroke-width: 1; opacity: .45; }
+svg.ch .dot { stroke: var(--panel); stroke-width: 2; }
+svg.ch .hb { fill: var(--text); opacity: .06; }
+.spark { display: inline-block; vertical-align: middle; overflow: visible; }
+.spark .ln { fill: none; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.spark .lim { stroke: var(--line-strong); stroke-width: 1; stroke-dasharray: 3 2; }
+.chtip { position: absolute; z-index: 5; pointer-events: none; min-width: 120px; max-width: 260px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 9px 7px; box-shadow: 0 8px 24px -12px var(--shadow); font-size: 12.5px; line-height: 1.45; }
+.chtip .tx { font: 600 11px var(--mono); color: var(--muted); margin-bottom: 2px; }
+.chtip .r { display: flex; align-items: baseline; gap: 7px; }
+.chtip .r i { flex: none; width: 12px; border-top: 2px solid; transform: translateY(-3px); }
+.chtip .r b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.chtip .r span { color: var(--muted); }
+.cap { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+details.tv { margin-top: 8px; }
+details.tv summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
+details.tv[open] summary { margin-bottom: 8px; }
+@media (max-width: 760px) { svg.ch text { font-size: 11px; } svg.ch .axl { font-size: 12px; } }
+
+/* ---------- build order: waves of work side by side, stacked on phones ----------
+   <div class="waves">
+     <div class="wave"><div class="wk"><span>Wave 0</span><span>parallel</span></div>
+       <div class="pk"><b>A</b>Short task name<div class="pd">what it delivers</div></div></div>
+     <div class="wave">... <div class="pk gate"><b>R</b>Reviewer gate<div class="pd">...</div></div></div>
+   </div> */
+.waves { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0,1fr); gap: 14px; }
+.wave { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.wave .wk { font: 600 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); display: flex; justify-content: space-between; }
+.pk { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; }
+.pk b { font: 700 12px var(--mono); color: var(--clay); margin-right: 6px; }
+.pk .pd { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.pk.gate { border-color: var(--clay); }
+@media (max-width: 860px) { .waves { grid-auto-flow: row; } }
+
+/* ---------- spec page: the view of specs/current.md that spec-page.mjs builds and spec-page.js renders ----------
+   <div class="tools"><button class="btn">Edit text</button><span class="say" role="status"></span></div>
+   <section class="sec" data-sec="goal"><h2>Goal <button class="cmt">Comment</button></h2>...</section>
+   <ol class="checks"><li><span class="box" aria-hidden="true"></span><span class="t">criterion with <code>its command</code></span></li></ol>
+   <div class="card dec"><h4>Decision 1 <span class="st crit">hard to undo</span></h4><p class="t">choice</p>
+     <p class="alt">Rejected: <span class="t">alternative</span></p></div>
+   [contenteditable] marks a text block that is being edited; .assumed marks an assumption or open item. */
+.tools[hidden], .tools [hidden], .cmt[hidden] { display: none; }
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 16px; }
+.tools .say { font-size: 13px; color: var(--muted); }
+.gate { margin-top: 14px; font-size: 13.5px; color: var(--muted); max-width: 72ch; border-left: 3px solid var(--clay); padding-left: 10px; }
+.sec h2 { display: flex; align-items: center; gap: 10px; }
+.cmt { font: 500 11px var(--sans); letter-spacing: 0; text-transform: none; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+.cmt:hover { color: var(--text); border-color: var(--line-strong); }
+[contenteditable] { outline: 1px dashed var(--clay); outline-offset: 3px; border-radius: 3px; white-space: pre-wrap; }
+[contenteditable]:focus { outline: 2px solid var(--clay); }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.checks li, .plain li { display: flex; gap: 10px; align-items: baseline; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; min-width: 0; }
+.checks .box { flex: none; width: 13px; height: 13px; border: 1.5px solid var(--line-strong); border-radius: 3px; transform: translateY(2px); }
+.checks .n { flex: none; font: 600 12px var(--mono); color: var(--faint); }
+.checks .t, .plain .t { min-width: 0; overflow-wrap: anywhere; }
+.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.dec .alt { margin-top: 8px; color: var(--muted); font-size: 14px; }
+.dec h4 { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; }
+.assumed { border-left: 3px solid var(--st-paused); }
+.prose p { margin: 0 0 8px; max-width: 72ch; }
+.prose table { border-collapse: collapse; font-size: 14px; margin: 4px 0 8px; }
+.prose th, .prose td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
+.prose ul { margin: 0 0 8px; padding-left: 20px; }

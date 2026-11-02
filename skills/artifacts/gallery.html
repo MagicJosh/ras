@@ -1,0 +1,202 @@
+<title>Data Parts Gallery</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- artifacts skill gallery: every data part built from this folder's files, with made-up values and placeholder
+     names. It links the files so it previews locally and never drifts from them; a published page inlines them
+     instead (SKILL.md, step 2). Copy a part's markup and call from here, then put real, sourced values in. -->
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="parts.css">
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">artifacts skill · data parts</div>
+  <h1>Every data part, on one page</h1>
+  <p class="lede">Stat tiles, tables, charts and a heatmap, built from <code>parts.css</code>, <code>chart.js</code> and <code>data.js</code>. <b>Every value, name and limit here is made up</b> with <code>CrispChart.rng</code>. Point at a chart, or Tab to it and use the arrow keys, to read its values.</p>
+  <div class="meta"><span class="badge">example values</span><span>gallery 2 Nov 2026</span><span>all times UTC</span></div>
+</header>
+
+<h2>Stat tiles</h2>
+<p class="sub">A few headline numbers, each against its limits. A state shows as a color, an icon and a word; a tile without limits makes no verdict; a missing reading says "no data", never 0. All values are made up.</p>
+<div class="tiles" id="kpi"></div>
+
+<h2>Charts on a panel grid</h2>
+<p class="sub">Panels on 12 columns that widen on a tablet and stack on a phone. Each panel header names the chart, its unit, the example tag and the source. All values, names and limits are made up.</p>
+<div class="gd">
+  <section class="panel span8">
+    <div class="ph"><h3>Cooling fan duty, rack 1</h3><span class="pu">% of full speed</span><span class="ex">example values</span><span class="ps">made up</span></div>
+    <svg class="ch" id="ch-fan" viewBox="0 0 620 250" role="img" aria-label="Step line of the rack 1 fan duty, one sample a minute from 08:00 to 09:59 UTC, switching between about 15 % (idle) and up to 90 % (full). The full level fades and dips below the 70 % line from 09:19 to 09:23, then recovers after the filter is cleaned at 09:30. No readings from 08:44 to 08:49."></svg>
+    <div class="cap">The FULL level fades from 08:40 and dips under the 70 % line from 09:19 to 09:23, then recovers after the filter is cleaned at 09:30. Six failed reads (08:44 to 08:49) show as a gap.</div>
+    <details class="tv"><summary>Show the numbers</summary><div id="ch-fan-t"></div></details>
+  </section>
+  <section class="panel span4">
+    <div class="ph"><h3>Failed jobs per host, top 8</h3><span class="pu">jobs, last 30 d</span><span class="ex">example values</span></div>
+    <svg class="ch" id="ch-fail" viewBox="0 0 320 260" role="img" aria-label="Horizontal bars ranking the 8 hosts with the most failed jobs: A3 46, A2 32, B4 21, B3 19, C5 10, A5 5, B1 3, B2 3. A3 and A2 are past the review line at 30."></svg>
+    <div class="cap">A3 and A2 are past the review line at 30.</div>
+  </section>
+  <section class="panel span6">
+    <div class="ph"><h3>Build time per day, host C3</h3><span class="pu">s</span><span class="ex">example values</span><span class="ps">made up</span></div>
+    <svg class="ch" id="ch-open" viewBox="0 0 460 240" role="img" aria-label="Daily average build time of host C3 from 6 Oct to 2 Nov with a band from the day's lowest to highest value. The average rises from 16.56 s to 17.63 s on 23 Oct, crossing the 17.50 s review line on 21 Oct, and drops to 16.52 s after the disk is replaced on 24 Oct. 15 Oct has no data."></svg>
+    <div class="cap">The average crosses the 17.50 s review line on 21 Oct and drops back after the disk swap on 24 Oct. 15 Oct has no checks, so the line breaks.</div>
+  </section>
+  <section class="panel span6">
+    <div class="ph"><h3>Temperatures, host A1</h3><span class="pu">°C</span><span class="ex">example values</span><span class="ps">made up</span></div>
+    <svg class="ch" id="ch-temp" viewBox="0 0 460 240" role="img" aria-label="Four temperatures over 1 Nov, every 30 minutes: CPU package peaks at 56.5 °C at 12:00, below the 60 °C limit; power supply peaks at 40.6 °C and has no readings from 10:00 to 11:30; storage drive peaks at 34.4 °C; room air stays between 19.3 and 24.4 °C."></svg>
+    <div class="cap">The names are too long for the line ends, so a legend takes their place. The power supply has no readings from 10:00 to 11:30.</div>
+  </section>
+  <section class="panel span6">
+    <div class="ph"><h3>Jobs per hour, per rack</h3><span class="pu">jobs / h</span><span class="ex">example values</span><span class="ps">made up</span></div>
+    <svg class="ch" id="ch-rate" viewBox="0 0 460 230" role="img" aria-label="Jobs per hour for racks 1 to 4 on 2 Nov: all start at 06:00 at about 86 to 92; rack 3 drops to about 40 from 15:00."></svg>
+    <div class="cap">Rack 3 drops to about 40 an hour from 15:00. The other three end close together, so their names spread out and short lines join each to its rack.</div>
+  </section>
+  <section class="panel span3">
+    <div class="ph"><h3>Jobs per rack</h3><span class="pu">jobs / week</span><span class="ex">example values</span></div>
+    <svg class="ch" id="ch-week" viewBox="0 0 240 230" role="img" aria-label="Grouped bars, this week and last week per rack: rack 1 9,002 and 8,714; rack 2 10,018 and 9,416; rack 3 10,944 and 10,353; rack 4 10,692 and 10,399; rack 5 11,479 and 10,856; rack 6 10,638 and 11,443."></svg>
+    <div class="cap">Only rack 6 did fewer than last week.</div>
+  </section>
+  <section class="panel span3">
+    <div class="ph"><h3>Uploads per day</h3><span class="pu">files</span><span class="ex">example values</span></div>
+    <svg class="ch" id="ch-up" viewBox="0 0 240 230" role="img" aria-label="Stacked bars of uploads per day from 27 Oct to 2 Nov, split into uploaded, retried and failed; failed is 1 to 4 a day except 21 on 31 Oct."></svg>
+    <div class="cap">31 Oct had 21 failed uploads.</div>
+  </section>
+</div>
+
+<h2>Data table</h2>
+<p class="sub">Units in the headers, numbers right-aligned with fixed decimals per column, a state chip, an in-cell meter with its limits, a sparkline, group rows, a highlighted row and a total. Click or press Enter on a header to sort; on a phone the table scrolls sideways inside its box while the host column stays. All values are made up.</p>
+<div id="t-diag"></div>
+
+<h2>Spec table</h2>
+<p class="sub">The fixed facts about one thing, as key and value. Something not checked says so. All values are made up.</p>
+<div class="panel">
+  <div class="ph"><h3>Example build farm</h3><span class="ex">example values</span></div>
+  <dl class="spec">
+    <div><dt>Software version</dt><dd>1.4.2</dd></div>
+    <div><dt>Racks</dt><dd>5</dd></div>
+    <div><dt>Hosts per rack</dt><dd>6</dd></div>
+    <div><dt>Power, rack 1</dt><dd>4.2 <small>kW</small></dd></div>
+    <div><dt>Metrics sample rate</dt><dd>1 <small>s</small></dd></div>
+    <div><dt>Health check interval</dt><dd>100 <small>jobs</small></dd></div>
+    <div><dt>Disk warn and alarm</dt><dd>80 <small>%</small> · 90 <small>%</small></dd></div>
+    <div><dt>Heartbeat limit</dt><dd class="unk">not checked</dd></div>
+  </dl>
+</div>
+
+<h2>Heatmap</h2>
+<p class="sub">One value per cell on a one-hue scale with a legend. Every cell prints its value, so the color only helps the eye find highs and lows; the outlined cell is the highest. All values are made up.</p>
+<div class="panel"><div id="heat"></div></div>
+
+<footer>Sources: this folder's <code>style.css</code>, <code>parts.css</code>, <code>chart.js</code> and <code>data.js</code>. Every value, name and limit on this page is made up with <code>CrispChart.rng</code>. As of 2 Nov 2026.</footer>
+</div>
+
+<script src="chart.js"></script>
+<script src="data.js"></script>
+<script>
+/* every value below is example data from seeded generators; captions and aria-labels describe exactly what it draws */
+const S = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)'];
+const T0 = Date.UTC(2026, 10, 2, 8, 0), MIN = 6e4;
+let rnd = CrispChart.rng(5);
+const walk = (n, v, step) => Array.from({ length: n }, () => (v += (rnd() - 0.5) * step));
+
+CrispData.tiles('kpi', [
+  { label: 'Jobs today', value: 18432, dp: 0, src: 'all racks', delta: 1210, deltaText: 'vs 1 Nov', better: 'up', spark: walk(12, 1500, 300).map(Math.round) },
+  { label: 'Disk used', value: 84, unit: '%', dp: 0, warn: 80, crit: 90, max: 100, delta: 3, deltaText: 'since 26 Oct', better: 'down' },
+  { label: 'Build time, C3', value: 17.62, unit: 's', dp: 2, warn: 17.5, crit: 18, spark: walk(12, 17.2, 0.2) },
+  { label: 'Failed, last hour', value: 7, unit: 'jobs', dp: 0, warn: 2, crit: 5 },
+  { label: 'Free memory, rack 2', value: 34, unit: '%', dp: 0, warn: 20, crit: 10, dir: 'down', max: 50 },
+  { label: 'Uploads waiting', value: null, unit: 'files', since: 'last reading 14:03' }
+]);
+
+/* fan duty: one sample a minute, high and idle every 6 minutes, the FULL level fading until the filter is cleaned */
+rnd = CrispChart.rng(17);
+const gx = [], fan = [];
+for (let i = 0; i < 120; i++) {
+  gx.push(T0 + i * MIN);
+  const open = Math.floor(i / 6) % 2 === 1, fade = i < 90 ? Math.max(0, i - 40) * 0.45 : 0;
+  const v = open ? 86 - fade + rnd() * 4 : 12 + rnd() * 6;
+  fan.push(i >= 44 && i < 50 ? null : Math.round(v));  // six failed reads stay a gap
+}
+const fanChart = { x: gx, time: { tz: 'UTC' }, unit: '%', dp: 0, yMin: 0, yMax: 100, yTicks: [0, 30, 70, 100],
+  yLabel: 'fan duty, % of full speed', xLabel: 'time, UTC', series: [{ name: 'rack 1', color: S[0], data: fan, step: true }],
+  bands: [{ from: 0, to: 30, label: 'IDLE ≤ 30 %' }, { from: 70, to: 100, label: 'FULL ≥ 70 %' }],
+  events: [{ x: T0 + 90 * MIN, label: 'filter cleaned' }] };
+CrispChart.render('ch-fan', fanChart);
+CrispData.table('ch-fan-t', CrispChart.tableOf(fanChart, 'Fan duty per minute, rack 1'));
+
+/* failed jobs: the 8 worst of 15 hosts, largest first */
+rnd = CrispChart.rng(29);
+const fails = ['A', 'B', 'C'].flatMap(r => [1, 2, 3, 4, 5].map(c => [r + c, Math.round(rnd() ** 3 * 60)]))
+  .sort((a, b) => b[1] - a[1]).slice(0, 8);
+CrispChart.bars('ch-fail', { cats: fails.map(f => f[0]), horizontal: true, dp: 0, xLabel: 'failed jobs',
+  series: [{ name: 'failed jobs', color: S[0], data: fails.map(f => f[1]) }], limits: [{ y: 30, label: 'review at 30' }] });
+
+/* build time: a slow rise, a disk swap on 24 Oct, no checks on 15 Oct */
+rnd = CrispChart.rng(41);
+const days = Array.from({ length: 28 }, (_, d) => Date.UTC(2026, 9, 6 + d)), avg = [], lo = [], hi = [];
+for (let d = 0; d < 28; d++) {
+  const a = (d < 18 ? 16.6 + d * 0.06 : 16.5 + (d - 18) * 0.02) + (rnd() - 0.5) * 0.08;
+  const l = a - 0.15 - rnd() * 0.15, h = a + 0.15 + rnd() * 0.2;
+  avg.push(d === 9 ? null : +a.toFixed(2)); lo.push(d === 9 ? null : +l.toFixed(2)); hi.push(d === 9 ? null : +h.toFixed(2));
+}
+CrispChart.render('ch-open', { x: days, time: {}, unit: 's', dp: 2, yLabel: 'build time, s', xLabel: 'day, UTC',
+  series: [{ name: 'C3', color: S[2], data: avg, lo, hi }], limits: [{ y: 17.5, label: 'review at 17.50 s' }],
+  events: [{ x: days[18], label: 'disk replaced' }] });
+
+/* temperatures: four long names, so the chart falls back to a legend */
+rnd = CrispChart.rng(53);
+const tx = Array.from({ length: 48 }, (_, i) => Date.UTC(2026, 10, 1) + i * 30 * MIN);
+const shape = i => Math.sin(((i - 12) / 48) * 2 * Math.PI);
+const temps = [['CPU package', 44, 12], ['power supply', 34, 6], ['storage drive', 30, 4], ['room air', 22, 2]].map(([name, b, a], k) =>
+  ({ name, color: S[k], data: tx.map((_, i) => (k === 1 && i >= 20 && i < 24) ? null : +(b + a * shape(i) + (rnd() - 0.5) * 1.5).toFixed(1)) }));
+CrispChart.render('ch-temp', { x: tx, time: {}, unit: '°C', dp: 1, yLabel: 'temperature, °C', xLabel: 'time, UTC',
+  series: temps, limits: [{ y: 60, label: 'CPU limit 60 °C' }] });
+
+/* jobs per hour: three racks end close together, so their names spread out */
+rnd = CrispChart.rng(61);
+const rate = [1, 2, 3, 4].map((r, k) => ({ name: 'Rack ' + r, color: S[k], data: Array.from({ length: 24 }, (_, hr) => {
+  let v = 86 + rnd() * 6;
+  if (hr < 6) v = 0;
+  if (r === 3 && hr >= 15) v = 40 + rnd() * 6;
+  return Math.round(v);
+}) }));
+CrispChart.render('ch-rate', { series: rate, yMin: 0, yMax: 100, yTicks: [0, 25, 50, 75, 100], dp: 0, unit: 'jobs / h',
+  yLabel: 'jobs / h', xFmt: hr => String(hr).padStart(2, '0') + ':00', xTicks: [[0, '00:00'], [6, '06:00'], [12, '12:00'], [18, '18:00'], [23, '23:00']] });
+
+/* grouped and stacked bars */
+rnd = CrispChart.rng(71);
+const thisW = [1, 2, 3, 4, 5, 6].map(() => Math.round(9000 + rnd() * 3000)), lastW = thisW.map(v => Math.round(v * (0.9 + rnd() * 0.2)));
+CrispChart.bars('ch-week', { cats: ['1', '2', '3', '4', '5', '6'], dp: 0, unit: 'jobs', xLabel: 'rack', yFmt: v => CrispChart.fmt(v, { compact: true }),
+  series: [{ name: 'this week', color: S[0], data: thisW }, { name: 'last week', color: S[2], data: lastW }] });
+rnd = CrispChart.rng(73);
+const up = [], re = [], fa = [];
+for (let d = 0; d < 7; d++) { up.push(Math.round(130 + rnd() * 30)); re.push(Math.round(8 + rnd() * 12)); fa.push(d === 4 ? 21 : Math.round(rnd() * 4)); }
+CrispChart.bars('ch-up', { cats: ['27', '28', '29', '30', '31', '1', '2'], stacked: true, dp: 0, unit: 'files', xLabel: 'day',
+  series: [{ name: 'uploaded', color: S[0], data: up }, { name: 'retried', color: S[3], data: re }, { name: 'failed', color: S[1], data: fa }] });
+
+/* data table: three racks of five hosts, grouped by rack */
+rnd = CrispChart.rng(67);
+const STATE = ['active', 'active', 'active', 'paused', 'active', 'flagged', 'active', 'active', 'inactive', 'active', 'active', 'active', 'active', 'paused', 'active'];
+let k = 0;
+const groups = [1, 2, 3].map(r => ({ label: 'Rack ' + r, rows: ['A', 'B', 'C', 'D', 'E'].map(c => {
+  const open = +(16.3 + rnd() * 1.4).toFixed(2), st = STATE[k++];
+  return { host: c + r, tag: 'X-' + String(k).padStart(2, '0'), jobs: Math.round(15000 + rnd() * 9000),
+    open: st === 'inactive' ? null : open, close: st === 'inactive' ? null : +(open - 0.4 - rnd() * 0.3).toFixed(2),
+    st, wear: Math.round(20 + rnd() * 79), tr: st === 'inactive' ? null : walk(10, open - 0.3, 0.12) };
+}) }));
+CrispData.table('t-diag', { caption: 'Latest check per host', source: 'made up with CrispChart.rng', ex: true,
+  highlight: r => r.st === 'flagged',
+  cols: [{ key: 'host', label: 'Host', head: true, mono: true }, { key: 'tag', label: 'Asset tag', mono: true },
+    { key: 'jobs', label: 'Jobs', unit: 'count', dp: 0 }, { key: 'open', label: 'Build time', unit: 's', dp: 2 },
+    { key: 'close', label: 'Test time', unit: 's', dp: 2 },
+    { key: 'st', label: 'State', type: 'state', tones: { active: 'ok', paused: 'warn', flagged: 'crit', inactive: 'off' } },
+    { key: 'wear', label: 'Disk wear', unit: '% of rated life', dp: 0, type: 'meter', max: 100, warn: 80, crit: 95 },
+    { key: 'tr', label: 'Build time trend', unit: 'last 10', type: 'spark', dp: 2 }],
+  groups, foot: { host: 'All', jobs: groups.flatMap(g => g.rows).reduce((a, r) => a + r.jobs, 0) } });
+
+/* heatmap: jobs per host, the highest cell outlined */
+rnd = CrispChart.rng(79);
+const heat = [1, 2, 3, 4, 5].map(r => [0, 1, 2, 3, 4, 5].map(c => (r === 4 && c === 2) ? null : Math.round(18000 + rnd() * 7000)));
+const peakCell = Math.max(...heat.flat().filter(v => v != null));
+CrispData.heat('heat', { rows: ['Rack 1', 'Rack 2', 'Rack 3', 'Rack 4', 'Rack 5'], cols: ['A', 'B', 'C', 'D', 'E', 'F'], data: heat,
+  names: (r, c) => 'ABCDEF'[c] + (r + 1), unit: 'jobs', dp: 0, mark: (r, c) => heat[r][c] === peakCell,
+  caption: 'Jobs per host', source: 'made up with CrispChart.rng', ex: true });
+</script>

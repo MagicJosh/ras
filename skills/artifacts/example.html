@@ -1,0 +1,785 @@
+<title>Retry failed webhook deliveries</title>
+<meta name="claude:viewport-fit-sides" content="cover" data-keep="">
+<link rel="preconnect" href="https://fonts.googleapis.com" data-keep="">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" data-keep="">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet" data-keep="">
+<style data-keep="">
+/* artifacts skill house look. Inline all of it into the page's <style>, first; parts.css sections go after it.
+   Fonts (put in the file's top lines, after the title tag and the viewport-fit-sides meta):
+   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+   Page frame: <div class="wrap"><header>.eyebrow, h1, p.lede, .meta</header> h2 + p.sub + content ... <footer>sources</footer></div> */
+
+:root {
+  color-scheme: light;
+  --bg: #f5f3ec; --panel: #fffdf8; --line: #e0dccf; --line-strong: #c9c4b4; --hover: #ece8dd;
+  --text: #23231e; --muted: #66655b; --faint: #8f8d81;
+  --clay: #b9583a; --teal: #1a8079;
+  --pill: #fffdf8f0; --shadow: #2a261833;
+  /* data colors: job or machine states, and chart series. Use them for data only, never for page chrome. */
+  --st-active: #1a8079; --st-paused: #b07d12; --st-flagged: #c0392b; --st-idle: #8f8d81;
+  /* series pass the dataviz palette checks (light and dark, on --panel and --bg); re-run them after any change:
+     node <dataviz>/scripts/validate_palette.js "<--s1..--s6 hexes>" --mode light --surface "#fffdf8" (then --mode dark) */
+  --s1: #0f928a; --s2: #b9583a; --s3: #4f6fb0; --s4: #b07d12; --s5: #8a4fa8; --s6: #5d7a2e;
+  /* heatmap scale, one hue, low to high (dark flips: high is brighter). Text on --q1..--q3 is --text, on --q4/--q5 --panel */
+  --q1: #cff0ec; --q2: #9ed8d2; --q3: #66bcb4; --q4: #109088; --q5: #026c66;
+  /* the terminal mock stays dark in both themes: terminal colors are made for a dark background */
+  --term: #272822; --term-bar: #1f201b; --term-line: #33352d; --term-fg: #f8f8f2; --term-faint: #6b6c62;
+  --term-edge: #00000055; --term-dot: #3a3b34; --term-accent: #d97757;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: Consolas, "Cascadia Mono", "JetBrains Mono", Menlo, monospace;
+  --tfs: 13.5px; --lh: 1.35;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #151612; --panel: #1d1e19; --line: #33352d; --line-strong: #4b4d43; --hover: #33352d;
+    --text: #e6e4da; --muted: #9a9a8e; --faint: #6b6c62;
+    --clay: #d97757; --teal: #4ecdc4;
+    --pill: #23241ef2; --shadow: #000;
+    --st-active: #4ecdc4; --st-paused: #e0b44c; --st-flagged: #ef6f5e; --st-idle: #6b6c62;
+    --s1: #0fa69e; --s2: #d37252; --s3: #708fd2; --s4: #b48a10; --s5: #ad78c8; --s6: #7b9f38;
+    --q1: #11403d; --q2: #0f5c57; --q3: #027972; --q4: #22aba1; --q5: #45d3c8;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #151612; --panel: #1d1e19; --line: #33352d; --line-strong: #4b4d43; --hover: #33352d;
+  --text: #e6e4da; --muted: #9a9a8e; --faint: #6b6c62;
+  --clay: #d97757; --teal: #4ecdc4;
+  --pill: #23241ef2; --shadow: #000;
+  --st-active: #4ecdc4; --st-paused: #e0b44c; --st-flagged: #ef6f5e; --st-idle: #6b6c62;
+  --s1: #0fa69e; --s2: #d37252; --s3: #708fd2; --s4: #b48a10; --s5: #ad78c8; --s6: #7b9f38;
+  --q1: #11403d; --q2: #0f5c57; --q3: #027972; --q4: #22aba1; --q5: #45d3c8;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 var(--sans); }
+/* the side gutter in the exact form the viewport-fit-sides meta promises; vertical padding only via padding-block */
+.wrap { max-width: 1120px; margin: 0 auto; padding-block: 0 96px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header { padding: 48px 0 28px; }
+.eyebrow { font: 600 11.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--clay); }
+h1 { font-weight: 600; font-size: clamp(26px, 4.4vw, 38px); line-height: 1.15; letter-spacing: -.01em; margin: 14px 0 12px; max-width: 22ch; text-wrap: balance; }
+.lede { color: var(--muted); max-width: 64ch; margin: 0; }
+.lede b { color: var(--text); font-weight: 500; }
+/* status line under the lede: <div class="meta"><span class="badge">status</span><span>2 Nov 2026</span>...</div> */
+.meta { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-top: 18px; font: 12.5px var(--mono); color: var(--faint); }
+h2 { font-size: 13px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 56px 0 6px; }
+h2 + p.sub { color: var(--faint); margin: 0 0 18px; font-size: 14px; max-width: 72ch; }
+h3 { margin: 0; font-size: 24px; font-weight: 600; }
+code, kbd { font-family: var(--mono); font-size: .9em; }
+kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; color: var(--text); }
+pre { margin: 0; font: 12.5px/1.5 var(--mono); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+/* sources and as-of date, last thing on every page: <footer>Sources: <code>file</code>, ... As of 2 Nov 2026.</footer> */
+footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--faint); }
+
+/* cards: a grid of panels with a small uppercase heading */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.card { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+.card h4 { margin: 0 0 8px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.card ul { margin: 0; padding-left: 18px; }
+.card li + li { margin-top: 6px; }
+.card p { margin: 0; }
+.card p + p, .card p + pre, .card pre + p { margin-top: 8px; }
+.note { color: var(--muted); font-size: 14px; }
+.badge { font: 700 13px var(--mono); color: var(--bg); background: var(--clay); border-radius: 5px; padding: 2px 8px; white-space: nowrap; }
+
+/* controls */
+.btn { font: 500 13px var(--sans); color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; min-height: 36px; }
+.btn:hover { border-color: var(--line-strong); }
+:focus-visible { outline: 2px solid var(--clay); outline-offset: 2px; }
+input[type=range] { accent-color: var(--clay); }
+
+/* terminal mock: .term > .bar + .scr > .screen; fill .screen with CrispTerm.render() */
+.term { background: var(--term); border: 1px solid var(--term-line); border-radius: 10px; overflow: hidden; box-shadow: 0 24px 60px -30px var(--shadow); }
+.bar { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid var(--term-edge); background: var(--term-bar); font: 12px var(--mono); color: var(--term-faint); }
+.bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--term-dot); display: inline-block; }
+.bar .ttl { margin-left: 8px; }
+.bar .tag { margin-left: auto; color: var(--term-accent); }
+.scr { overflow-x: auto; padding: 14px 16px 16px; container-type: inline-size; }
+/* --cols columns fill the panel; below the font floor the screen scrolls sideways instead */
+.screen { --cols: 100; font: clamp(var(--tfs), calc(100cqw / (var(--cols) * .57)), 15.5px)/var(--lh) var(--mono); color: var(--term-fg); width: calc(var(--cols) * 1ch); }
+.row { display: flex; white-space: pre; height: calc(var(--lh) * 1em); line-height: var(--lh); }
+.row span { flex: none; }
+.row .c { display: inline-block; width: 1ch; text-align: center; overflow: hidden; }
+.row .b { font-weight: 700; } .row .d { opacity: .6; } .row .i { font-style: italic; } .row .u { text-decoration: underline; }
+.mini { display: block; width: 100%; text-align: left; background: var(--term); border: 1px solid var(--term-line); border-radius: 8px; padding: 0; color: var(--term-fg); font: inherit; }
+button.mini { cursor: pointer; }
+.mini.on { border-color: var(--term-accent); }
+.mini .lbl { display: flex; gap: 10px; align-items: baseline; padding: 8px 14px 0; font-size: 13px; color: var(--term-faint); }
+.mini .lbl b { font-weight: 600; color: var(--term-fg); }
+.mini .scr { padding: 6px 14px 10px; }
+
+/* floating pill switcher at the bottom: ← name + dots → */
+.sw { position: fixed; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; align-items: center; gap: 4px; background: var(--pill); border: 1px solid var(--line-strong); border-radius: 999px; padding: 5px; box-shadow: 0 12px 40px -10px var(--shadow); backdrop-filter: blur(6px); z-index: 10; max-width: calc(100vw - 32px); }
+.sw button { width: 40px; height: 40px; border-radius: 50%; border: 0; background: transparent; color: var(--text); font-size: 18px; cursor: pointer; }
+.sw button:hover { background: var(--hover); }
+.sw .now { min-width: 150px; text-align: center; font: 500 14px var(--sans); padding: 0 6px; }
+.sw .now b { font-family: var(--mono); color: var(--clay); margin-right: 6px; }
+.sw .dots { display: flex; gap: 5px; justify-content: center; margin-top: 3px; }
+.sw .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--line-strong); }
+.sw .dots i.on { background: var(--clay); }
+
+@media (max-width: 760px) {
+  :root { --tfs: 11.5px; }
+  header { padding-top: 32px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* artifacts skill parts: page components (example.html composes the ones a spec page uses) and the
+   data parts shown in gallery.html. Inline after style.css, and only the sections the page uses (keep "tags", the
+   others need it). Colors come from style.css tokens; data colors from its data tokens (--st-*, --s1..--s6, --q1..--q5). */
+
+/* ---------- tags ----------
+   <span class="chip">host = web-3</span>          a small mono tag: a filter value, a source name
+   <span class="ex">example values</span>       marks made-up values; put it on every block that holds them
+   <span class="st warn">paused</span>          a state: icon shape + word, so color is never the only signal
+                                                tones: ok ●  warn ▲  crit ■  off ○  unknown ? (no data, dashed)
+   <span class="st i crit"><span class="vh">alarm</span></span>   the icon alone; the word stays for screen readers
+   <span class="cm warn"><i style="width:74%"></i><b style="left:80%"></b></span>   a small meter, a tick per limit
+   <span class="vh">read aloud only</span>      visually hidden text
+   <span class="na">no data</span>              a missing value, said in words */
+.chip { font: 11px/1.5 var(--mono); color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; background: var(--bg); }
+.ex { font: 600 10.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--clay); border: 1px solid var(--clay); border-radius: 4px; padding: 0 5px; white-space: nowrap; }
+.ok { --tone: var(--st-active); } .warn { --tone: var(--st-paused); } .crit { --tone: var(--st-flagged); } .off, .unknown { --tone: var(--st-idle); }
+.st { display: inline-flex; align-items: center; gap: 5px; font: 600 11px/1.6 var(--mono); letter-spacing: .04em; text-transform: uppercase; color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 0 6px 0 5px; white-space: nowrap; vertical-align: middle; }
+.st::before { content: "●"; content: "●" / ""; color: var(--tone, var(--st-active)); font-size: 9px; }
+.st.warn::before { content: "▲"; content: "▲" / ""; }
+.st.crit::before { content: "■"; content: "■" / ""; }
+.st.off::before { content: "○"; content: "○" / ""; }
+.st.unknown { border-style: dashed; color: var(--muted); }
+.st.unknown::before { content: "?"; content: "?" / ""; color: var(--muted); font-size: 11px; }
+.st.i { border: 0; padding: 0; margin-left: 6px; }
+.cm { position: relative; display: inline-block; width: 56px; height: 6px; border-radius: 3px; background: var(--line); vertical-align: middle; margin-left: 8px; }
+.cm > i { display: block; height: 100%; max-width: 100%; border-radius: 3px; background: var(--tone, var(--st-active)); }
+.cm > b { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--text); }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.na { color: var(--muted); font-style: italic; }
+
+/* ---------- stage strip: a process in a few stages, left to right, stacked on phones ----------
+   <div class="pipe">
+     <div class="card stage"><div class="k">1 · writes</div><div class="t">Build service</div><p class="note">...</p>
+       <div class="files"><div class="f"><span>app.db</span><span>forever</span></div></div></div>
+     <div class="arrow" aria-hidden="true">→</div>
+     <div class="card stage hl">...the stage this job changes...</div>
+   </div> */
+.pipe { display: flex; align-items: stretch; }
+.pipe > .stage { flex: 1 1 0; min-width: 0; }
+.pipe > .arrow { flex: 0 0 28px; display: grid; place-items: center; color: var(--line-strong); font: 18px var(--mono); }
+.stage .k { font: 600 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+.stage .t { font-weight: 600; margin: 4px 0 6px; }
+.stage .files { display: grid; gap: 6px; margin-top: 8px; }
+.stage .f { display: flex; justify-content: space-between; gap: 8px; font: 12.5px var(--mono); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; background: var(--bg); }
+.stage .f span:last-child { color: var(--faint); }
+.stage.hl { border-color: var(--clay); }
+@media (max-width: 860px) {
+  .pipe { flex-direction: column; }
+  .pipe > .stage { flex: none; }
+  .pipe > .arrow { transform: rotate(90deg); }
+}
+
+/* ---------- link map: sources left, their users right, curves between; built by linkmap.js ----------
+   <div class="legend"><span><i></i>built now</span><span><i class="dash"></i>planned after</span><span><i class="hot"></i>the one you point at</span></div>
+   <div class="map" id="map"></div>      then CrispMap.mount(...). Below 820px the curves hide and the chips carry the links. */
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+.legend i { display: inline-block; width: 26px; height: 0; border-top: 2px solid var(--line-strong); vertical-align: middle; margin-right: 6px; }
+.legend i.dash { border-top-style: dashed; }
+.legend i.hot { border-color: var(--clay); }
+.map { position: relative; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.15fr); column-gap: clamp(70px, 11vw, 150px); align-items: start; }
+.map svg.links { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; }
+.links path { fill: none; stroke: var(--line-strong); stroke-width: 1.2; opacity: .55; transition: opacity .15s, stroke .15s; }
+.links path.later { stroke-dasharray: 4 4; }
+.links path.on { stroke: var(--clay); stroke-width: 2; opacity: 1; }
+.map.focus .links path:not(.on) { opacity: .12; }
+.map > .col { display: grid; gap: 18px; min-width: 0; position: relative; z-index: 1; }
+.map .group { display: grid; gap: 6px; }
+.ghead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 0 2px 2px; }
+.ghead b { font: 700 13.5px var(--mono); }
+.ghead span { font-size: 12px; color: var(--faint); text-align: right; }
+.dhead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; padding: 0 2px 2px; }
+.dhead b { font-weight: 600; font-size: 15px; }
+.dhead span { font: 11.5px var(--mono); color: var(--faint); }
+.node { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 11px 8px; cursor: default; transition: opacity .15s, border-color .15s; min-width: 0; }
+.node .n { font-weight: 500; font-size: 14px; line-height: 1.35; }
+.node .d { font-size: 12.5px; color: var(--muted); line-height: 1.4; margin-top: 1px; }
+.node .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.node.later { border-style: dashed; }
+.node.later .n::after { content: "later"; font: 600 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; margin-left: 8px; vertical-align: 2px; }
+.node.off { opacity: .55; border-style: dotted; }
+.node.off .n::after { content: "not shown"; font: 600 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--faint); margin-left: 8px; }
+.map.focus .node:not(.on) { opacity: .3; }
+.node.on { border-color: var(--clay); }
+@media (max-width: 819px) {
+  .map { grid-template-columns: minmax(0,1fr); row-gap: 28px; }
+  .map svg.links { display: none; }
+}
+
+/* ---------- panel grid: panels on 12 columns (span4 = a third); tablets widen them, phones stack them ----------
+   <div class="gd">
+     <section class="panel span8">
+       <div class="ph"><h3>Jobs per hour, per rack</h3><span class="pu">jobs / h</span><span class="ex">example values</span>
+         <span class="ps">Job log</span></div>      title, its unit, the example tag if made up, the source on the right
+       ...a chart, table, tiles or heatmap...<div class="cap">One sentence on what it shows.</div></section>
+   </div>   The mock dashboard below draws its sketch on this same grid. */
+.gd { display: grid; grid-template-columns: repeat(12, minmax(0,1fr)); gap: 12px; }
+.span2 { grid-column: span 2; } .span3 { grid-column: span 3; } .span4 { grid-column: span 4; } .span5 { grid-column: span 5; } .span6 { grid-column: span 6; } .span7 { grid-column: span 7; } .span8 { grid-column: span 8; } .span9 { grid-column: span 9; } .span12 { grid-column: span 12; }
+@media (max-width: 1000px) {
+  .gd > .span2 { grid-column: span 4; }
+  .gd > .span3, .gd > .span4 { grid-column: span 6; }
+  .gd > .span5, .gd > .span7, .gd > .span8, .gd > .span9 { grid-column: span 12; }
+}
+@media (max-width: 760px) { .gd > *, .gd > [class] { grid-column: span 12; } }  /* [class] outranks the tablet rules */
+.panel { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px 16px; }
+.ph { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 10px; }
+.ph h3 { margin: 0; font-size: 14.5px; font-weight: 600; line-height: 1.35; }
+.ph .pu { font: 11.5px var(--mono); color: var(--muted); }
+.ph .ps { margin-left: auto; font: 11px var(--mono); color: var(--muted); }
+
+/* ---------- mock dashboard: a sketch of a screen on the panel grid, one column on phones ----------
+   <div class="mock"><div class="mbar"><b>Overview</b><span class="ex">example values</span><span class="r">last 24 h · refresh 30 s</span></div>
+     <div class="gd">
+       <div class="gp span4"><div class="gt">Panel title <span>its source</span></div>
+         <div class="big ok">RUNNING</div><div class="small">detail line</div></div>
+       <div class="gp span2">... <div class="meter"><i style="width:74%"></i></div></div>
+       <div class="gp span4"><table class="codes"><tr><td>Queue-2-stalled</td><td>14:02</td></tr></table></div>
+     </div></div> */
+.mock { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.mock + .mock { margin-top: 18px; }
+.mock .gd { gap: 8px; }
+.mbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 2px 4px 10px; border-bottom: 1px solid var(--line); margin-bottom: 10px; }
+.mbar b { font-weight: 600; }
+.mbar .r { margin-left: auto; font: 11.5px var(--mono); color: var(--faint); }
+.gp { min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px 10px; }
+.gp .gt { font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 6px; display: flex; justify-content: space-between; gap: 8px; }
+.gp .gt span { font: 10.5px var(--mono); color: var(--faint); white-space: nowrap; }
+.big { font-size: 26px; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.big.ok { color: var(--st-active); }
+.small { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+.codes { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.codes td { padding: 4px 0; border-top: 1px solid var(--line); }
+.codes tr:first-child td { border-top: 0; }
+.codes td:first-child { font-family: var(--mono); color: var(--st-flagged); }
+.codes td:last-child { text-align: right; color: var(--faint); font-family: var(--mono); }
+.meter { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; margin-top: 10px; }
+.meter > i { display: block; height: 100%; background: var(--st-paused); }
+
+/* ---------- cell grid: a table of cells with a state stripe, scrolls sideways on phones ----------
+   <div class="cells"><table><tr><th></th><th>A</th>...</tr>
+     <tr><th class="rl">Rack 1<small>4.2 kW</small></th>
+       <td><div class="cell paused" title="A1 · paused"><b>A1</b><span class="sr">X-14</span><span class="cy">23,104</span></div></td>...</tr></table></div>
+   <div class="keys"><span><i style="background:var(--st-active)"></i>active</span>...</div>
+   States: (none) = active, .paused, .flagged, .inactive. Say the state in text too (title), not only by color. */
+.cells { overflow-x: auto; }
+.cells table { border-collapse: separate; border-spacing: 4px; width: 100%; min-width: 420px; font-variant-numeric: tabular-nums; }
+.cells th { font: 600 11px var(--mono); color: var(--faint); }
+.cells th.rl { text-align: left; white-space: nowrap; padding-right: 4px; }
+.cells th.rl small { display: block; font: 10px var(--sans); color: var(--faint); }
+.cell { border-radius: 5px; padding: 4px 6px 5px; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--st-active); line-height: 1.25; }
+.cell b { font: 700 12px var(--mono); }
+.cell .sr { font: 11px var(--mono); color: var(--faint); margin-left: 4px; }
+.cell .cy { display: block; font-size: 12px; }
+.cell.paused { border-left-color: var(--st-paused); }
+.cell.flagged { border-left-color: var(--st-flagged); }
+.cell.inactive { border-left-color: var(--st-idle); }
+.keys { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.keys i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+
+/* ---------- stat tiles: one value against its limits; the row wraps, two to a row on a phone ----------
+   <div class="tiles" id="kpi"></div>    CrispData.tiles('kpi', [...]) writes them (data.js). By hand:
+   <div class="tile warn"><div class="tl"><span>Disk used</span><span class="src">8a</span></div>
+     <div class="tv">74<small>%</small></div><div class="tm"><span class="st warn">warn</span><span>warn ≥ 80 %</span></div></div>
+   A missing reading is .tile.unknown reading "no data", never a 0. Values keep proportional figures. */
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 164px), 1fr)); gap: 10px; }
+.tile { min-width: 0; display: grid; gap: 5px; align-content: start; background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--tone, var(--line)); border-radius: 8px; padding: 10px 12px 12px; }
+.tile.unknown { border-style: dashed; border-top-style: solid; }
+.tile .tl { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; font-size: 12.5px; font-weight: 500; color: var(--muted); }
+.tile .src { font: 11px var(--mono); color: var(--muted); }
+.tile .tv { font: 600 28px/1.15 var(--sans); letter-spacing: -.01em; }
+.tile .tv small { font-size: 14px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+.tile.unknown .tv { font-size: 20px; font-weight: 500; color: var(--muted); padding: 4px 0 3px; }
+.tile .cm { display: block; width: auto; margin: 4px 0 3px; }
+.tile .tm { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 12px; color: var(--muted); }
+.tile .td { font: 12px var(--mono); color: var(--muted); }
+.td .ar.good { color: var(--st-active); } .td .ar.bad { color: var(--st-flagged); }
+
+/* ---------- data table: units in headers, right-aligned numbers, sort, groups; scrolls inside its own box ----------
+   <div id="t-diag"></div>    CrispData.table('t-diag', {...}) fills it and makes it the scroll box (data.js).
+   The header and the row header column stay put while the box scrolls; a long table scrolls inside 70vh. */
+.dtbox { overflow: auto; max-height: min(70vh, 640px); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.dt { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
+.dt caption, .heat caption { caption-side: top; text-align: left; padding: 10px 12px 8px; }
+.heat caption { padding: 0 0 8px; }
+.ct { font-weight: 600; }
+.cs { display: block; font: 11.5px var(--mono); color: var(--muted); margin-top: 2px; }
+.dt th, .dt td { padding: 6px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+.dt thead th { position: sticky; top: 0; z-index: 2; background: var(--panel); font: 600 12px/1.3 var(--sans); color: var(--muted); vertical-align: bottom; border-bottom-color: var(--line-strong); }
+.dt .u { display: block; font: 400 11px var(--mono); color: var(--muted); }
+.dt th button { font: inherit; color: inherit; text-align: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.dt th button:hover { color: var(--text); }
+.dt .si { margin-left: 4px; font-size: 9px; color: var(--clay); }
+.dt th[aria-sort] { color: var(--text); }
+.dt .n { text-align: right; font-variant-numeric: tabular-nums; }
+.dt .m { font-family: var(--mono); font-size: 12.5px; }
+.dt tbody th { position: sticky; left: 0; z-index: 1; background: var(--panel); font-weight: 500; }
+.dt tbody tr:hover > * { background: var(--hover); }
+.dt tr.hl > * { background: var(--hover); font-weight: 600; }
+.dt tr.hl > :first-child { box-shadow: inset 3px 0 var(--clay); }
+.dt tr.grp th { background: var(--bg); font: 600 11.5px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.dt tfoot > tr > * { font-weight: 600; border-top: 1px solid var(--line-strong); border-bottom: 0; }
+.dt .spark { margin: -4px 0; }
+
+/* ---------- spec table: a thing's fixed facts as key/value pairs, two columns of pairs when there is room ----------
+   <dl class="spec"><div><dt>Node.js</dt><dd>22.11.0</dd></div><div><dt>Rack 1 power</dt><dd>4.2 <small>kW</small></dd></div>
+     <div><dt>Heartbeat limit</dt><dd class="unk">not checked</dd></div></dl> */
+.spec { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); column-gap: 28px; margin: 0; }
+.spec > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; min-width: 0; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.spec dt { font-size: 13.5px; color: var(--muted); }
+.spec dd { margin: 0; font: 13px var(--mono); text-align: right; overflow-wrap: anywhere; }
+.spec dd small { font-size: 11.5px; color: var(--muted); }
+.spec dd.unk { font: italic 13px var(--sans); color: var(--muted); }
+
+/* ---------- heatmap: one value per cell on a one-hue scale, --q1 low to --q5 high, with a legend ----------
+   <div id="heat"></div>    CrispData.heat('heat', {...}) (data.js). Every cell prints its value, so the color only
+   helps the eye find highs and lows. A cell without data is hatched and says "no data". Scrolls inside its box. */
+.heat { overflow-x: auto; }
+.heat table { border-collapse: separate; border-spacing: 3px; font-variant-numeric: tabular-nums; }
+.heat th { font: 600 11px var(--mono); color: var(--muted); }
+.heat tbody th { text-align: left; white-space: nowrap; padding-right: 6px; }
+.heat th small { display: block; font: 10.5px var(--sans); color: var(--muted); }
+.heat td { min-width: 62px; border-radius: 5px; padding: 4px 7px 5px; line-height: 1.25; font-size: 12.5px; font-weight: 600; color: var(--text); }
+.heat td b { display: block; font: 700 11px var(--mono); }
+.q1 { background: var(--q1); } .q2 { background: var(--q2); } .q3 { background: var(--q3); } .q4 { background: var(--q4); } .q5 { background: var(--q5); }
+.heat .q4, .heat .q5 { color: var(--panel); }
+.heat td.na, .hk i.na { background: repeating-linear-gradient(45deg, var(--line) 0 2px, transparent 2px 6px); }
+.heat td.na { color: var(--muted); font-weight: 400; font-style: italic; box-shadow: inset 0 0 0 1px var(--line-strong); }
+.heat td.hl { outline: 2px solid var(--clay); outline-offset: 1px; }
+.hk { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.hk i { display: inline-block; width: 14px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+
+/* ---------- charts: line, step, range, bars and sparklines, drawn by chart.js at the panel's real width ----------
+   <svg class="ch" id="ch-rate" viewBox="0 0 420 230" role="img" aria-label="what the data shows"></svg>
+   <div class="cap">One sentence on what the drawn data does.</div>
+   <details class="tv"><summary>Show the numbers</summary><div id="ch-rate-t"></div></details>   the table twin
+   The viewBox height is the drawn height; the width follows the panel, so text stays its real size on a phone. */
+svg.ch { width: 100%; height: auto; display: block; overflow: visible; touch-action: pan-y; }
+svg.ch .ax { stroke: var(--line); stroke-width: 1; }
+svg.ch text { fill: var(--muted); font: 10.5px var(--mono); }
+svg.ch .ln { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+svg.ch .rng { opacity: .16; }
+svg.ch .band { opacity: .1; }
+svg.ch .lim { stroke: var(--text); stroke-width: 1; stroke-dasharray: 5 4; opacity: .65; }
+svg.ch .ev { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
+svg.ch .key { fill: none; stroke-width: 2; stroke-linecap: round; }
+svg.ch .lbl, svg.ch .lg, svg.ch .vl { fill: var(--text); }
+svg.ch .lbl { font-weight: 600; }
+svg.ch .axl { font: 11.5px var(--sans); }
+svg.ch .halo { paint-order: stroke; stroke: var(--panel); stroke-width: 3px; stroke-linejoin: round; }
+svg.ch .xh { stroke: var(--text); stroke-width: 1; opacity: .45; }
+svg.ch .dot { stroke: var(--panel); stroke-width: 2; }
+svg.ch .hb { fill: var(--text); opacity: .06; }
+.spark { display: inline-block; vertical-align: middle; overflow: visible; }
+.spark .ln { fill: none; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.spark .lim { stroke: var(--line-strong); stroke-width: 1; stroke-dasharray: 3 2; }
+.chtip { position: absolute; z-index: 5; pointer-events: none; min-width: 120px; max-width: 260px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 9px 7px; box-shadow: 0 8px 24px -12px var(--shadow); font-size: 12.5px; line-height: 1.45; }
+.chtip .tx { font: 600 11px var(--mono); color: var(--muted); margin-bottom: 2px; }
+.chtip .r { display: flex; align-items: baseline; gap: 7px; }
+.chtip .r i { flex: none; width: 12px; border-top: 2px solid; transform: translateY(-3px); }
+.chtip .r b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.chtip .r span { color: var(--muted); }
+.cap { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+details.tv { margin-top: 8px; }
+details.tv summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
+details.tv[open] summary { margin-bottom: 8px; }
+@media (max-width: 760px) { svg.ch text { font-size: 11px; } svg.ch .axl { font-size: 12px; } }
+
+/* ---------- build order: waves of work side by side, stacked on phones ----------
+   <div class="waves">
+     <div class="wave"><div class="wk"><span>Wave 0</span><span>parallel</span></div>
+       <div class="pk"><b>A</b>Short task name<div class="pd">what it delivers</div></div></div>
+     <div class="wave">... <div class="pk gate"><b>R</b>Reviewer gate<div class="pd">...</div></div></div>
+   </div> */
+.waves { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0,1fr); gap: 14px; }
+.wave { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.wave .wk { font: 600 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--faint); display: flex; justify-content: space-between; }
+.pk { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; }
+.pk b { font: 700 12px var(--mono); color: var(--clay); margin-right: 6px; }
+.pk .pd { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+.pk.gate { border-color: var(--clay); }
+@media (max-width: 860px) { .waves { grid-auto-flow: row; } }
+
+/* ---------- spec page: the view of specs/current.md that spec-page.mjs builds and spec-page.js renders ----------
+   <div class="tools"><button class="btn">Edit text</button><span class="say" role="status"></span></div>
+   <section class="sec" data-sec="goal"><h2>Goal <button class="cmt">Comment</button></h2>...</section>
+   <ol class="checks"><li><span class="box" aria-hidden="true"></span><span class="t">criterion with <code>its command</code></span></li></ol>
+   <div class="card dec"><h4>Decision 1 <span class="st crit">hard to undo</span></h4><p class="t">choice</p>
+     <p class="alt">Rejected: <span class="t">alternative</span></p></div>
+   [contenteditable] marks a text block that is being edited; .assumed marks an assumption or open item. */
+.tools[hidden], .tools [hidden], .cmt[hidden] { display: none; }
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 16px; }
+.tools .say { font-size: 13px; color: var(--muted); }
+.gate { margin-top: 14px; font-size: 13.5px; color: var(--muted); max-width: 72ch; border-left: 3px solid var(--clay); padding-left: 10px; }
+.sec h2 { display: flex; align-items: center; gap: 10px; }
+.cmt { font: 500 11px var(--sans); letter-spacing: 0; text-transform: none; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+.cmt:hover { color: var(--text); border-color: var(--line-strong); }
+[contenteditable] { outline: 1px dashed var(--clay); outline-offset: 3px; border-radius: 3px; white-space: pre-wrap; }
+[contenteditable]:focus { outline: 2px solid var(--clay); }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.checks li, .plain li { display: flex; gap: 10px; align-items: baseline; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; min-width: 0; }
+.checks .box { flex: none; width: 13px; height: 13px; border: 1.5px solid var(--line-strong); border-radius: 3px; transform: translateY(2px); }
+.checks .n { flex: none; font: 600 12px var(--mono); color: var(--faint); }
+.checks .t, .plain .t { min-width: 0; overflow-wrap: anywhere; }
+.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.dec .alt { margin-top: 8px; color: var(--muted); font-size: 14px; }
+.dec h4 { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; }
+.assumed { border-left: 3px solid var(--st-paused); }
+.prose p { margin: 0 0 8px; max-width: 72ch; }
+.prose table { border-collapse: collapse; font-size: 14px; margin: 4px 0 8px; }
+.prose th, .prose td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
+.prose ul { margin: 0 0 8px; padding-left: 20px; }
+
+</style>
+<script type="application/json" id="spec-data">{
+ "title": "Retry failed webhook deliveries",
+ "date": "2 Nov 2026",
+ "cksum": "1007575763 2007",
+ "source": "specs/current.md",
+ "example": true,
+ "edited": false,
+ "goal": "A webhook that fails with a timeout or a 5xx is sent again, up to 5 times, with growing delays, and each try is logged.",
+ "decisions": [
+  {
+   "choice": "Keep retries in the existing jobs table with a `next_try_at` column",
+   "rejected": "a new message queue service",
+   "hard": "no"
+  },
+  {
+   "choice": "Back off as 30 s, 2 min, 10 min, 1 h, 6 h",
+   "rejected": "a fixed 1 min delay",
+   "hard": "no"
+  },
+  {
+   "choice": "Store each try as a row in `delivery_attempts`",
+   "rejected": "a counter on the delivery row",
+   "hard": "yes"
+  }
+ ],
+ "decisionsNote": "",
+ "criteria": [
+  "A delivery that times out is tried again after 30 s: `pytest tests/test_retry.py::test_timeout_retries`.",
+  "After 5 failed tries the delivery is marked failed and not tried again: `pytest tests/test_retry.py::test_gives_up`.",
+  "A 4xx response is not retried: `pytest tests/test_retry.py::test_no_retry_on_4xx`.",
+  "Every try writes one `delivery_attempts` row: `pytest tests/test_attempts.py`."
+ ],
+ "nongoals": [
+  "No retry button in the admin screen.",
+  "No change to how webhooks are signed."
+ ],
+ "assumptions": [
+  "The worker already runs every 10 s, so a 30 s delay is honored within 10 s.",
+  "Receivers treat a repeated delivery id as a duplicate."
+ ],
+ "blast": [
+  {
+   "file": "app/webhooks/deliver.py",
+   "note": "sends one delivery, now returns the outcome.",
+   "users": [
+    "app/worker.py",
+    "tests/test_retry.py"
+   ]
+  },
+  {
+   "file": "app/models.py",
+   "note": "new column and table.",
+   "users": [
+    "app/webhooks/deliver.py",
+    "app/worker.py"
+   ]
+  },
+  {
+   "file": "migrations/0042_retries.sql",
+   "note": "the schema change.",
+   "users": []
+  }
+ ],
+ "waves": [
+  {
+   "name": "Wave 0",
+   "items": [
+    {
+     "title": "Schema",
+     "detail": "Add `next_try_at` and the `delivery_attempts` table."
+    }
+   ]
+  },
+  {
+   "name": "Wave 1",
+   "items": [
+    {
+     "title": "Retry loop",
+     "detail": "The worker picks due deliveries and backs off."
+    },
+    {
+     "title": "Attempt log",
+     "detail": "One row per try, with status and duration."
+    }
+   ]
+  },
+  {
+   "name": "Wave 2",
+   "items": [
+    {
+     "title": "Review",
+     "detail": "Fresh review of the diff, then the full test run."
+    }
+   ]
+  }
+ ],
+ "other": [
+  {
+   "heading": "Proposed additions",
+   "md": "| Detail | Proposal | Why it matters |\n|---|---|---|\n| A 4xx response | Do not retry | The receiver rejected the payload; sending it again gives the same answer |\n| Manual retry | Out of scope for now | Needs an admin screen |"
+  }
+ ]
+}</script>
+<div class="wrap" id="app"></div>
+<script data-keep="">
+/* artifacts skill link map: sources on the left, the things that use them on the right, joined by curves.
+   Point at (or Tab to) any box to light up its links and dim the rest. Needs parts.css's "link map" rules.
+   Markup: <div class="map" id="map"></div>          mount() fills it with an svg and two columns
+   Call:   CrispMap.mount(document.getElementById('map'), [
+             { head: 'app.db', note: 'permanent record', items: [
+               { id: 't5', name: 'Event log', desc: 'every event and error' },
+               { id: 'tdq', name: 'Mail queue', desc: 'alerts waiting to be sent', off: true } ] }  // off: exists, not shown
+           ], [
+             { head: 'Overview', note: 'home screen · 30 s', items: [
+               { id: 'p2', name: 'Open error codes', desc: 'errors not cleared yet', from: ['t5'] },
+               { id: 'l1', name: 'Failed jobs', desc: 'error codes over time', from: ['t2'], later: true } ] }  // later: planned
+           ]);
+   ids are unique across both sides. A right item's `from` lists its sources; they also show as chips under it,
+   which is all a phone gets: below 820px the curves hide. A left item used only by `later` items is dashed too.
+   head, note, name and desc are HTML. Every link must be a real dependency you read in the source. */
+const CrispMap = (() => {
+  const WIDE = '(min-width: 820px)';  // parts.css hides the curves at max-width 819px; keep the two in step
+
+  /** Every link, from the right items' `from` lists: [{ t: leftId, p: rightId, later }]. */
+  function links(right) {
+    return right.flatMap(g => g.items.flatMap(p => (p.from || []).map(t => ({ t, p: p.id, later: !!p.later }))));
+  }
+
+  /** Curve from the middle of rect a's right edge to the middle of rect b's left edge, relative to box. */
+  function path(a, b, box) {
+    const x1 = a.right - box.left, y1 = a.top + a.height / 2 - box.top;
+    const x2 = b.left - box.left, y2 = b.top + b.height / 2 - box.top, dx = (x2 - x1) / 2, f = n => n.toFixed(1);
+    return `M${f(x1)},${f(y1)} C${f(x1 + dx)},${f(y1)} ${f(x2 - dx)},${f(y2)} ${f(x2)},${f(y2)}`;
+  }
+
+  function mount(map, left, right) {
+    const all = links(right), box = {}, name = {};
+    const el = (cls, html) => { const e = document.createElement('div'); e.className = cls; e.innerHTML = html; return e; };
+    const node = (it, cls, extra) => {
+      const n = el('node' + cls, `<div class="n">${it.name}</div><div class="d">${it.desc || ''}</div>${extra}`);
+      n.tabIndex = 0; n.dataset.id = it.id; box[it.id] = n;
+      return n;
+    };
+    const column = (groups, headCls, make) => {
+      const col = el('col', '');
+      for (const g of groups) {
+        const grp = el('group', '');
+        grp.appendChild(el(headCls, `<b>${g.head}</b><span>${g.note || ''}</span>`));
+        g.items.forEach(it => grp.appendChild(make(it)));
+        col.appendChild(grp);
+      }
+      map.appendChild(col);
+    };
+
+    map.innerHTML = '<svg class="links" aria-hidden="true"></svg>';
+    const svg = map.firstChild;
+    left.forEach(g => g.items.forEach(it => { name[it.id] = it.name; }));
+    column(left, 'ghead', it => {
+      const used = all.filter(l => l.t === it.id);
+      return node(it, it.off ? ' off' : used.length && used.every(l => l.later) ? ' later' : '', '');
+    });
+    column(right, 'dhead', it => node(it, it.later ? ' later' : '',
+      `<div class="chips">${(it.from || []).map(t => `<span class="chip">${name[t]}</span>`).join('')}</div>`));
+
+    const wide = window.matchMedia(WIDE);
+    const draw = () => {
+      if (!wide.matches) { svg.innerHTML = ''; return; }
+      const b = map.getBoundingClientRect();
+      svg.setAttribute('width', b.width); svg.setAttribute('height', b.height);
+      svg.setAttribute('viewBox', `0 0 ${b.width} ${b.height}`);
+      svg.innerHTML = all.map(l => `<path data-t="${l.t}" data-p="${l.p}"${l.later ? ' class="later"' : ''} d="${
+        path(box[l.t].getBoundingClientRect(), box[l.p].getBoundingClientRect(), b)}"/>`).join('');
+    };
+    const clear = () => {
+      map.classList.remove('focus');
+      map.querySelectorAll('.on').forEach(e => e.classList.remove('on'));
+    };
+    const focus = n => {
+      clear();
+      const id = n.dataset.id, hit = all.filter(l => l.t === id || l.p === id);
+      if (!hit.length) return;
+      map.classList.add('focus'); n.classList.add('on');
+      for (const l of hit) {
+        box[l.t].classList.add('on'); box[l.p].classList.add('on');
+        svg.querySelectorAll(`path[data-t="${l.t}"][data-p="${l.p}"]`).forEach(p => p.classList.add('on'));
+      }
+    };
+    map.querySelectorAll('.node').forEach(n => {
+      n.addEventListener('mouseenter', () => focus(n)); n.addEventListener('focus', () => focus(n));
+      n.addEventListener('mouseleave', clear); n.addEventListener('blur', clear);
+    });
+    draw();
+    if (window.ResizeObserver) new ResizeObserver(draw).observe(map); else window.addEventListener('resize', draw);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+    wide.addEventListener('change', draw);
+  }
+
+  return { links, path, mount };
+})();
+
+/* artifacts skill spec page: renders the spec data (the JSON that spec-page.mjs put in #spec-data) and lets a viewer
+   who can edit the page change its text blocks in place. Needs linkmap.js before it and parts.css's "spec page" rules.
+   Saving publishes the whole page again through the artifact capability, with the edited data and edited: true;
+   Claude merges that text into specs/current.md with spec-page.mjs merge. The page never approves anything: the ras
+   gate trusts only the phrase typed in the terminal. Comments go through the comments capability's composer.
+   Declare on publish: capabilities { artifact: {}, comments: { composer_only: true } }. */
+const SpecPage = (() => {
+  // The publish skeleton, exactly as the Artifact tool wraps a page, so a later publish from the tool replaces it.
+  const SKELETON = '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>';
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const inline = s => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  const json = D => JSON.stringify(D, null, 1).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+
+  /** Read-only markdown for the sections the page does not edit: paragraphs, lists and pipe tables. */
+  function prose(md) {
+    const out = [];
+    let list = null, table = null;
+    const flush = () => {
+      if (list) out.push('<ul>' + list.map(t => `<li>${inline(t)}</li>`).join('') + '</ul>');
+      if (table) out.push('<table>' + table.filter(r => !/^[\s|:-]+$/.test(r)).map((r, i) => '<tr>' + r.replace(/^\||\|$/g, '').split('|')
+        .map(c => i ? `<td>${inline(c.trim())}</td>` : `<th scope="col">${inline(c.trim())}</th>`).join('') + '</tr>').join('') + '</table>');
+      list = table = null;
+    };
+    for (const l of md.split('\n')) {
+      const li = l.match(/^\s*(?:[-*+]|\d+[.)])\s+(.*)$/);
+      if (/^\s*\|/.test(l)) { if (!table) flush(); (table = table || []).push(l.trim()); }
+      else if (li) { if (!list) flush(); (list = list || []).push(li[1]); }
+      else if (!l.trim()) flush();
+      else { flush(); out.push(`<p>${inline(l.trim())}</p>`); }
+    }
+    flush();
+    return out.join('');
+  }
+
+  /** The whole page for data D, in the order spec-page.mjs builds it: skeleton, title, kept head, data, app, kept script. */
+  function documentFor(D) {
+    const keep = sel => [...document.querySelectorAll(sel)].map(e => e.outerHTML).join('\n');
+    return SKELETON + `<title>${esc(document.title)}</title>\n` + keep('meta[data-keep], link[data-keep], style[data-keep]') +
+      `\n<script type="application/json" id="spec-data">${json(D)}<\/script>\n<div class="wrap" id="app"></div>\n` +
+      keep('script[data-keep]') + '\n</body></html>';
+  }
+
+  // One editable text block: data-f is its path in the data ("goal", "criteria.2", "decisions.0.rejected").
+  const ed = (path, text, editing, tag = 'span') =>
+    `<${tag} class="t" data-f="${path}"${editing ? ' contenteditable="plaintext-only" spellcheck="true"' : ''}>${editing ? esc(text) : inline(text)}</${tag}>`;
+  const sec = (id, title, sub, body) =>
+    `<section class="sec" data-sec="${id}"><h2>${title} <button type="button" class="cmt" hidden>Comment</button></h2>${sub ? `<p class="sub">${sub}</p>` : ''}${body}</section>`;
+
+  function render(D, editing) {
+    const ex = D.example ? ' <span class="ex">example values</span>' : '';
+    const decisions = D.decisions.length ? '<div class="grid">' + D.decisions.map((d, i) => `<div class="card dec"><h4>Decision ${i + 1}${d.hard == null ? ''
+      : d.hard === 'yes' ? ' <span class="st crit">hard to undo</span>' : ' <span class="st ok">easy to undo</span>'}</h4>${ed(`decisions.${i}.choice`, d.choice, editing, 'p')}${d.rejected == null ? ''
+      : `<p class="alt">Rejected: ${ed(`decisions.${i}.rejected`, d.rejected, editing)}</p>${editing ? `<p class="alt">Hard to undo: ${ed(`decisions.${i}.hard`, d.hard, editing)}</p>` : ''}`}</div>`).join('') + '</div>'
+      : `<p class="note">${inline(D.decisionsNote || 'None: the change has one obvious shape.')}</p>`;
+    const list = (k, cls, mark) => D[k].length ? `<ol class="${cls}">` + D[k].map((t, i) =>
+      `<li${mark ? ` class="${mark}"` : ''}>${cls === 'checks' ? `<span class="box" aria-hidden="true"></span><span class="n">${i + 1}</span>` : ''}${ed(`${k}.${i}`, t, editing)}</li>`).join('') + '</ol>'
+      : '<p class="note">None written.</p>';
+    const users = [...new Set(D.blast.flatMap(b => b.users))];
+    const map = !D.blast.length ? '<p class="note">None written.</p>' : users.length
+      ? '<div class="legend"><span><i class="hot"></i>the one you point at</span></div><div class="map" id="map"></div>'
+      : '<ol class="plain">' + D.blast.map(b => `<li><span class="t"><code>${esc(b.file)}</code> ${inline(b.note)}</span></li>`).join('') + '</ol>';
+    let letter = 0;
+    const waves = D.waves.length ? sec('waves', 'Work packages', 'From the spec\'s Work packages section, in order.', '<div class="waves">' + D.waves.map(w =>
+      `<div class="wave"><div class="wk"><span>${esc(w.name)}</span></div>` + w.items.map(p =>
+        `<div class="pk"><b>${String.fromCharCode(65 + letter++)}</b>${inline(p.title)}${p.detail ? `<div class="pd">${inline(p.detail)}</div>` : ''}</div>`).join('') + '</div>').join('') + '</div>') : '';
+    return `<header>
+  <div class="eyebrow">Spec · ${esc(D.source)}</div>
+  <h1>${esc(D.title || 'Spec')}</h1>
+  <p class="lede">${ed('goal', D.goal, editing)}</p>
+  <div class="meta"><span class="badge">view of ${esc(D.source)}</span><span>spec of ${esc(D.date)}</span><span>cksum ${esc(D.cksum)}</span>${D.edited ? '<span class="st warn">edited here, not merged yet</span>' : ''}${ex}</div>
+  <p class="gate">This page cannot approve the spec. Approval is the reply <code>approve spec</code>, typed in the terminal. Text saved here changes the spec, so Claude merges it into <code>${esc(D.source)}</code> and asks for approval again.</p>
+  <div class="tools" hidden><button type="button" class="btn" data-act="edit">Edit text</button><button type="button" class="btn" data-act="save" hidden>Save edits</button><button type="button" class="btn" data-act="cancel" hidden>Cancel</button><span class="say" role="status" aria-live="polite"></span></div>
+</header>
+${sec('decisions', 'Decisions', 'Each choice next to the alternative it beat, and whether it is hard to undo.', decisions)}
+${sec('blast', 'What changes', 'From Blast radius: the files the change touches, joined to the callers the spec names.', map)}
+${waves}
+${sec('criteria', 'Acceptance criteria', 'Checks that can run, with their commands. The boxes stay empty: this page does not run them.', list('criteria', 'checks'))}
+${sec('nongoals', 'Non-goals', 'What this change will not do.', list('nongoals', 'plain'))}
+${sec('assumptions', 'Assumptions and open items', 'Decided without the user, each with the default taken. Not confirmed yet.', list('assumptions', 'plain', 'assumed'))}
+${D.other.map((o, i) => sec('other' + i, esc(o.heading), '', `<div class="prose">${prose(o.md)}</div>`)).join('\n')}
+<footer>Source: <code>${esc(D.source)}</code>, cksum ${esc(D.cksum)}, as of ${esc(D.date)}. Built by the artifacts skill's <code>spec-page.mjs</code>; the diagrams are rebuilt from the spec, not edited here.${D.example ? ' Every value on this page is an example.' : ''}</footer>`;
+  }
+
+  /** Start: render, then light up editing and comments when the viewer's shell grants them. */
+  function start() {
+    const app = document.getElementById('app');
+    let D = JSON.parse(document.getElementById('spec-data').textContent), editing = false, artifact = null, comments = null;
+    const $ = s => app.querySelector(s);
+    const say = t => { $('.say').textContent = t; };
+    const draw = () => {
+      app.innerHTML = render(D, editing);
+      if (!editing && $('#map')) {
+        const users = [...new Set(D.blast.flatMap(b => b.users))];
+        CrispMap.mount($('#map'),
+          [{ head: 'Changes', note: 'files in Blast radius', items: D.blast.map((b, i) => ({ id: 'f' + i, name: `<code>${esc(b.file)}</code>`, desc: inline(b.note) })) }],
+          [{ head: 'Used by', note: 'callers the spec names', items: users.map((u, j) => ({ id: 'u' + j, name: `<code>${esc(u)}</code>`,
+            from: D.blast.map((b, i) => b.users.includes(u) ? 'f' + i : null).filter(Boolean) })) }]);
+      }
+      if (artifact) { $('.tools').hidden = false; ['edit', 'save', 'cancel'].forEach(a => { $(`[data-act="${a}"]`).hidden = (a === 'edit') === editing; }); }
+      if (comments) app.querySelectorAll('.cmt').forEach(b => { b.hidden = false; });
+    };
+    const readOnly = () => { artifact = null; editing = false; draw(); $('.tools').hidden = false; say('This view is read-only.'); };
+    async function save() {
+      const next = JSON.parse(JSON.stringify(D));
+      app.querySelectorAll('[data-f]').forEach(el => {
+        const path = el.dataset.f.split('.'), last = path.pop();
+        path.reduce((o, k) => o[k], next)[last] = el.textContent.replace(/\s+/g, ' ').trim();
+      });
+      for (const k of ['criteria', 'nongoals', 'assumptions']) next[k] = next[k].filter(Boolean);  // an emptied item is removed
+      next.decisions.forEach(d => { if (d.hard != null) d.hard = /^y/i.test(d.hard) ? 'yes' : 'no'; });
+      if (JSON.stringify(next) === JSON.stringify(D)) { editing = false; draw(); say('Nothing changed.'); return; }
+      next.edited = true;
+      say('Saving...');
+      try {
+        await artifact.publish(documentFor(next));  // every open view reloads to the new version
+      } catch (e) {
+        const code = e && e.code;
+        if (code === 'conflict') say('Someone saved first. The page reloads to their version.');
+        else if (code === 'rate_limited') say('Saving too often. Wait a minute, then save again.');
+        else if (['not_writer', 'not_granted', 'not_declared', 'consent_required', 'capability_disabled', 'capability_removed'].includes(code)) readOnly();
+        else say(`Could not save (${code || 'error'}). Your text is still in the boxes.`);
+      }
+    }
+    app.addEventListener('click', e => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      if (b.classList.contains('cmt') && comments) comments.openComposer({ element: b.closest('section') }).catch(() => {});
+      else if (b.dataset.act === 'edit') { editing = true; draw(); say('Edit the boxed text. Clear an item to remove it.'); }
+      else if (b.dataset.act === 'cancel') { editing = false; draw(); say(''); }
+      else if (b.dataset.act === 'save') save();
+    });
+    draw();
+    const claude = window.claude;  // missing in a local preview: the page then stays read-only
+    if (claude && claude.use) {
+      const later = () => { if (!editing) draw(); };
+      claude.use('artifact').then(a => { artifact = a; later(); }).catch(() => {});
+      claude.use('comments').then(c => { comments = c; later(); }).catch(() => {});
+    }
+  }
+
+  if (typeof document !== 'undefined' && document.getElementById('spec-data')) start();
+  return { prose, render, documentFor, SKELETON };
+})();
+
+</script>
