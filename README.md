@@ -33,6 +33,7 @@ In the gate lane:
 
 1. The agent loads `spec`. It asks only what is still unknown: the goal, who uses it, must-have versus nice-to-have, what is out of scope, constraints, and what done looks like. It asks one round in plain text: numbered questions, with a recommended answer for each. Reply `yes` to accept all, or answer by number. Type `/spar` for a deeper round.
 2. When every question has an answer, it writes `specs/current.md`: Goal, Decisions, Proposed additions (details you did not ask for), criteria, non-goals, blast radius. It asks for approval once.
+   For a medium or large spec it also publishes a page built from the spec (`artifacts` skill), and for a small one it asks whether you want one. You can edit the page's text in place and comment on it. The agent merges your edits into `specs/current.md` and asks for approval again. The page never approves: only the reply typed in the terminal does. The page link lives in `specs/current.url`.
 3. You read the spec and reply with exactly `approve spec`. Reply `ask me` first to get questions on a spec that guessed.
 4. The agent loads `build`, implements the spec, then loads `finalize`: defects, cuts, fresh checks, report. `finalize` archives the spec to `specs/<date>-<slug>.md`, which ends the approval. It keeps the 5 newest archived specs.
 

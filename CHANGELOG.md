@@ -1,5 +1,15 @@
 # Changelog
 
+## 6.2.0
+
+- New `artifacts` skill: the house look for HTML Artifact pages, moved into ras so it works on every machine. Tokens and type (`style.css`), parts (`parts.css`, `chart.js`, `data.js`, `linkmap.js`, `terminal.js`), accuracy and data rules, and a page lint (`lint.mjs`). `check.mjs` tests the scripts and the lint, and CI runs it. `gallery.html` shows every data part with made-up values.
+- `spec` publishes a page for each spec, built from `specs/current.md` by `skills/artifacts/spec-page.mjs`. The spec stays the single source of truth: the page header shows the spec's date and its `cksum`, the checksum the gate uses. The page shows the goal, each decision beside its rejected alternative and whether it is hard to undo, a link map from Blast radius, waves from an optional Work packages section, the acceptance criteria as a checklist, the non-goals, and the assumptions marked as not confirmed. `example.html` is a sample built from `example-spec.md`.
+- The text blocks on the page are editable in place through the `artifact` capability, and anything can be commented on through the `comments` composer. The diagrams are rebuilt from the spec. Before each republish, `spec` reads the live page and runs `spec-page.mjs merge`, which writes the edits into the spec. That changes the spec, so `spec` asks for `approve spec` again. The page has no approve button: only the phrase typed in the terminal approves.
+- Medium and large specs always get a page. A spec is small when it has no Trade-offs and no Security section, Blast radius lists at most 2 files, and it has at most 3 acceptance criteria. For a small spec, the approval message asks in plain text whether you want a page.
+- The page link lives in `specs/current.url`, so a later session republishes to the same page. `specs/` is never risky and stays out of git, and the file does not touch the spec's checksum. `finalize` deletes it with the archive step. 5 new hook tests (276).
+- `spec`: Decisions lines use `<choice>. Rejected: <alternative>. Hard to undo: yes|no.`, and Blast radius lines name their callers, so the page can draw them. The word cap of `spec` is now 800.
+- `which` and the README list 14 skills. Eval `spec-first` checks that a small spec gets the page offer.
+
 ## 6.1.1
 
 - `spar` has a new step 6 for confirmed decisions. A decision that is hard to reverse and beat a real alternative gets an offer. The offer is an ADR in `docs/adr/`, in the format of `architecture` step 6. `spar` writes it only on `yes`. It says nothing about ADRs for other decisions. The word cap of `spar` is now 420.
