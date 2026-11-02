@@ -349,8 +349,16 @@ gate SessionStart '{"source":"clear"}' >/dev/null; write "$R"; check "clear ends
 # specs/ stays out of git.
 reset; write "$proj/specs/current.md"; [ "$(cat "$proj/specs/.gitignore" 2>/dev/null)" = '*' ]; check "writing the spec creates specs/.gitignore" 0 $?
 reset; mkdir -p "$proj/specs"; gate SessionStart '{"source":"resume"}' >/dev/null; [ -f "$proj/specs/.gitignore" ]; check "session start ignores an existing specs/" 0 $?
-g2=$(mktemp -d); git -C "$g2" init -q && mkdir -p "$g2/specs" && printf '*\n' > "$g2/specs/.gitignore" && : > "$g2/specs/current.md" && : > "$g2/specs/2026-01-01-x.md"
+g2=$(mktemp -d); git -C "$g2" init -q && mkdir -p "$g2/specs" && printf '*\n' > "$g2/specs/.gitignore" && : > "$g2/specs/current.md" && : > "$g2/specs/2026-01-01-x.md" && : > "$g2/specs/current.url" && : > "$g2/specs/current.html"
 [ -z "$(git -C "$g2" status --porcelain)" ]; check "git sees nothing in specs/" 0 $?; rm -rf "$g2"
+
+# The spec page's link file and local page live in specs/: never risky, and they leave the approval alone.
+reset; write "$proj/specs/current.url"; check "allow Write of specs/current.url" 0 $?
+bash_ "echo https://example.com/a > specs/current.url"; check "Bash: writing specs/current.url allowed" 0 $?
+bash_ "node spec-page.mjs build specs/current.md specs/current.html"; check "Bash: building specs/current.html allowed" 0 $?
+bash_ "rm -f specs/current.url specs/current.html"; check "Bash: the finalize cleanup of the page files allowed" 0 $?
+mkspec; say "approve spec" >/dev/null; printf 'https://example.com/a\n' > "$proj/specs/current.url"; : > "$proj/specs/current.html"
+write "$R"; check "the page files do not change the approval" 0 $?
 
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

@@ -1,6 +1,6 @@
 schema_version: "1.1"
 name: spec-first
-description: Running /spec loads spec, which writes specs/current.md without questions on a clear request and stops before it edits app.py.
+description: Running /spec loads spec, which writes specs/current.md without questions on a clear request, offers a page for the small spec, and stops before it edits app.py.
 context:
   scaffold_script: scaffold.sh
 execution:
@@ -26,3 +26,8 @@ graders:
     tool: AskUserQuestion
     min: 0
     max: 0
+  - name: offers-page
+    type: regex
+    pattern: 'want a page'
+    flags: i
+    arm: with-only
