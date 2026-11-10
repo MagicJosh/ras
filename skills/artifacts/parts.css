@@ -290,7 +290,7 @@ details.tv[open] summary { margin-bottom: 8px; }
 .tools[hidden], .tools [hidden], .cmt[hidden] { display: none; }
 .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 16px; }
 .tools .say { font-size: 13px; color: var(--muted); }
-.gate { margin-top: 14px; font-size: 13.5px; color: var(--muted); max-width: 72ch; border-left: 3px solid var(--clay); padding-left: 10px; }
+p.gate { margin-top: 14px; font-size: 13.5px; color: var(--muted); max-width: 72ch; border-left: 3px solid var(--clay); padding-left: 10px; }
 .sec h2 { display: flex; align-items: center; gap: 10px; }
 .cmt { font: 500 11px var(--sans); letter-spacing: 0; text-transform: none; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; cursor: pointer; }
 .cmt:hover { color: var(--text); border-color: var(--line-strong); }
