@@ -1,0 +1,130 @@
+<title>How Webhook Retries Work</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- Worked example for guides/explainer.md. Every name and value in it is made up. It links this folder's files so it
+     previews locally; a published page inlines them instead (SKILL.md, "Build a page"). -->
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="parts.css">
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">example · explainer page</div>
+  <h1>How webhook retries work</h1>
+  <p class="lede">A delivery that <b>times out or gets a 5xx is sent again</b> after 30 s, 2 min, 10 min, 1 h and 6 h, then marked failed. A <b>4xx is never retried</b>, and <b>every try is one row</b> in <code>delivery_attempts</code>. This page is a worked example: the system, its files and its numbers are made up.</p>
+  <div class="meta"><span class="badge">worked example</span><span class="ex">example values</span><span>2 Nov 2026</span></div>
+</header>
+
+<h2>The picture</h2>
+<p class="sub">A parcel courier stands for the retry system, pair by pair. The courier and the pairs are made up.</p>
+<div class="ana">
+  <div><span class="hd">A parcel courier</span><span></span><span class="hd">The retry system</span></div>
+  <div><span class="a">Nobody opens the door, so the courier leaves a card</span><span class="eq">=</span><span class="b">A timeout or a 5xx is logged as one row</span></div>
+  <div><span class="a">The courier comes back, and waits longer each time</span><span class="eq">=</span><span class="b">Waits of 30 s, 2 min, 10 min, 1 h, 6 h</span></div>
+  <div><span class="a">After the last visit the parcel goes back to the depot</span><span class="eq">=</span><span class="b">After 5 retries the delivery is marked failed</span></div>
+  <div><span class="a">Wrong address: coming back will not help</span><span class="eq">=</span><span class="b">A 4xx is not retried</span></div>
+</div>
+<p class="note"><b>Where the picture breaks.</b> A courier sees a closed door. The sender sees nothing at all, which is why it needs a timeout to decide that nobody is home.</p>
+
+<h2>Walk through it</h2>
+<p class="sub">One delivery, followed step by step. The case, its times and the values in each step are made up.</p>
+<p><span class="ex">example values</span> Delivery 8841, from its first failure to its second try:</p>
+<div class="walk" id="walk">
+  <div class="pipe">
+    <div class="card stage" data-s="send"><div class="k">1 · sends</div><div class="t">Sender</div><p class="note">Posts one delivery and reports the outcome.</p></div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="card stage" data-s="log"><div class="k">2 · records</div><div class="t">Attempt log</div><p class="note">Writes one row for each try.</p></div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="card stage" data-s="jobs"><div class="k">3 · schedules</div><div class="t">Jobs table</div><p class="note">Holds the time of the next try.</p></div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="card stage" data-s="work"><div class="k">4 · wakes</div><div class="t">Worker</div><p class="note">Looks for due deliveries and hands them back.</p></div>
+  </div>
+  <ol class="steps">
+    <li data-s="send"><button type="button" class="sb"><b>The receiver does not answer</b><span class="chip">Sender</span></button>
+      <p>The sender posts delivery 8841 and waits. At 14:02:00 it gives up: no answer came back.</p>
+      <dl class="spec"><div class="d"><dt>status</dt><dd>timed out</dd></div><div><dt>next_try_at</dt><dd>none</dd></div><div><dt>attempts</dt><dd>0</dd></div></dl></li>
+    <li data-s="log"><button type="button" class="sb"><b>The try is logged</b><span class="chip">Attempt log</span></button>
+      <p>The failed try becomes one row in <code>delivery_attempts</code>, with its status and how long it took.</p>
+      <dl class="spec"><div><dt>status</dt><dd>timed out</dd></div><div><dt>next_try_at</dt><dd>none</dd></div><div class="d"><dt>attempts</dt><dd>1</dd></div></dl></li>
+    <li data-s="jobs"><button type="button" class="sb"><b>The next try gets a time</b><span class="chip">Jobs table</span></button>
+      <p>The first wait is 30 s, so the row gets 14:02:30. From here the delivery just sits in the table. Nothing is running for it.</p>
+      <dl class="spec"><div class="d"><dt>status</dt><dd>waiting</dd></div><div class="d"><dt>next_try_at</dt><dd>14:02:30</dd></div><div><dt>attempts</dt><dd>1</dd></div></dl></li>
+    <li data-s="work"><button type="button" class="sb"><b>The worker finds it due</b><span class="chip">Worker</span></button>
+      <p>The worker asks for rows whose time has passed. At 14:02:34 it finds this one and hands it back to the sender.</p>
+      <dl class="spec"><div class="d"><dt>status</dt><dd>due</dd></div><div><dt>next_try_at</dt><dd>14:02:30</dd></div><div><dt>attempts</dt><dd>1</dd></div></dl></li>
+    <li data-s="send"><button type="button" class="sb"><b>The second try lands</b><span class="chip">Sender</span></button>
+      <p>The receiver answers 200. The time is cleared, the try is logged, and the delivery is done after one retry.</p>
+      <dl class="spec"><div class="d"><dt>status</dt><dd>delivered</dd></div><div class="d"><dt>next_try_at</dt><dd>none</dd></div><div class="d"><dt>attempts</dt><dd>2</dd></div></dl></li>
+  </ol>
+</div>
+
+<h2>The pieces</h2>
+<p class="sub">Two tables carry the state, and two short listings carry the rules. The tables, the files and the code are made up.</p>
+<div class="grid">
+  <div class="card"><h4>The attempt log</h4><p class="note">One row per try in <code>delivery_attempts</code>, with the status and the duration. Count the rows to know how many tries a delivery had.</p></div>
+  <div class="card"><h4>The due time</h4><p class="note"><code>next_try_at</code> on the jobs row is the whole schedule. A delivery with no time is not waiting.</p></div>
+</div>
+<figure class="anno"><figcaption>app/webhooks/backoff.py · lines 12 to 17 <span class="ex">example code</span></figcaption>
+  <div class="code" tabindex="0" role="region" aria-label="backoff.py, lines 12 to 17, lines 15 and 17 marked">
+    <div class="l"><i>12</i><code>BACKOFF = [30, 120, 600, 3600, 21600]  # seconds</code></div>
+    <div class="l"><i>13</i><code> </code></div>
+    <div class="l"><i>14</i><code>def next_try_at(retries_done: int, now: datetime) -&gt; datetime | None:</code></div>
+    <div class="l mk"><i>15</i><code>    if retries_done &gt;= len(BACKOFF):</code><span class="pin">1</span></div>
+    <div class="l"><i>16</i><code>        return None</code></div>
+    <div class="l mk"><i>17</i><code>    return now + timedelta(seconds=BACKOFF[retries_done])</code><span class="pin">2</span></div>
+  </div>
+  <ol class="pins">
+    <li><span><b>Line 15 is the stop.</b> With 5 retries done there is no 6th wait in the list. The function returns nothing and the delivery is marked failed.</span></li>
+    <li><span><b>Line 17 is the wait.</b> The count of retries done picks the wait: 0 picks 30 s, 4 picks 6 h. The list on line 12 is the whole policy.</span></li>
+  </ol>
+</figure>
+<figure class="anno"><figcaption>app/webhooks/deliver.py · lines 41 to 43 <span class="ex">example code</span></figcaption>
+  <div class="code" tabindex="0" role="region" aria-label="deliver.py, lines 41 to 43, line 42 marked">
+    <div class="l"><i>41</i><code>resp = send(delivery)</code></div>
+    <div class="l mk"><i>42</i><code>if resp.status &gt;= 500 or resp.timed_out:</code><span class="pin">1</span></div>
+    <div class="l"><i>43</i><code>    schedule_retry(delivery)</code></div>
+  </div>
+  <ol class="pins">
+    <li><span><b>Line 42 is the gate.</b> Only a receiver that broke or never answered gets another try. A 4xx means the receiver read the payload and refused it, so the same payload would get the same answer.</span></li>
+  </ol>
+</figure>
+
+<h2>Why it is this way</h2>
+<p class="sub">The claim, and the reasons under it. Each link names its evidence. The reasons are made up, and two of them are assumed.</p>
+<ol class="why">
+  <li><span class="w">claim</span><span>Retries wait 30 s, then longer each time, and stop after 5.</span><span class="e"><span class="chip">read: backoff.py:12</span></span></li>
+  <li><span class="w">because</span><span>A receiver that just failed is most likely still down one second later.</span><span class="e"><span class="st unknown">assumed</span></span></li>
+  <li><span class="w">so</span><span>Five quick retries would all fail, and the delivery would be given up while the receiver is still coming back.</span><span class="e"><span class="chip">follows from the line above</span></span></li>
+  <li><span class="w">so</span><span>Each wait is longer than the last. The five waits add up to 7 h 12 min 30 s.</span><span class="e"><span class="chip">computed: 30 + 120 + 600 + 3600 + 21600 s</span></span></li>
+  <li><span class="w">but</span><span>A receiver that is down for longer than that needs a person, so the 5th failed retry ends it.</span><span class="e"><span class="st unknown">assumed</span></span></li>
+</ol>
+
+<h2>Fixed facts</h2>
+<p class="sub">The limits and rules of the system. All values are made up.</p>
+<div class="panel">
+  <dl class="spec">
+    <div><dt>Retries after the first try</dt><dd>5</dd></div>
+    <div><dt>Waits</dt><dd>30 <small>s</small> · 2 <small>min</small> · 10 <small>min</small> · 1 <small>h</small> · 6 <small>h</small></dd></div>
+    <div><dt>Total wait</dt><dd>7 <small>h</small> 12 <small>min</small> 30 <small>s</small></dd></div>
+    <div><dt>Retried</dt><dd>a timeout, a 5xx</dd></div>
+    <div><dt>Not retried</dt><dd>a 4xx</dd></div>
+    <div><dt>Log</dt><dd>one <code>delivery_attempts</code> row per try</dd></div>
+    <div><dt>Worker interval</dt><dd class="unk">not checked</dd></div>
+  </dl>
+</div>
+
+<h2>Still open</h2>
+<p class="sub">Assumed or not checked, with what will settle each. All three items are made up.</p>
+<div class="grid">
+  <div class="card"><h4>A receiver that just failed is still down</h4><p class="note">Assumed, so the first wait is 30 s and not 1 s. Logs of real receivers would show how long failures last.</p></div>
+  <div class="card"><h4>A long outage needs a person</h4><p class="note">Assumed, so the delivery is marked failed after the last wait. Asking the receivers how long their outages run settles it.</p></div>
+  <div class="card"><h4>The worker interval</h4><p class="note">The spec assumes 10 s, and "Fixed facts" shows it as not checked. Reading the worker's schedule settles it.</p></div>
+</div>
+
+<footer>Sources: <code>example-spec.md</code> in this folder, and two made-up listings: <code>app/webhooks/backoff.py</code> lines 12 to 17 and <code>app/webhooks/deliver.py</code> lines 41 to 43. Every name, file and number on this page is an example. As of 2 Nov 2026.</footer>
+</div>
+
+<script src="walk.js"></script>
+<script>
+CrispWalk.mount(document.getElementById('walk'));
+</script>

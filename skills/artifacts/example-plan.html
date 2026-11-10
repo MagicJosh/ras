@@ -1,0 +1,156 @@
+<title>Webhook Retry Plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<!-- Worked example for guides/plan.md. Every name and value in it is made up. It links this folder's files so it
+     previews locally; a published page inlines them instead (SKILL.md, "Build a page"). -->
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="parts.css">
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">example · plan page</div>
+  <h1>Retries for failed webhook deliveries</h1>
+  <p class="lede">A delivery that times out or gets a 5xx is <b>sent again up to 5 times</b>, with waits that grow from 30 s to 6 h. <b>Each try is logged</b> in its own row. This page is a worked example: the job, its files and its numbers are made up.</p>
+  <div class="meta"><span class="badge">waiting for approval</span><span class="ex">example values</span><span>2 Nov 2026</span><span>branch retry-webhooks</span></div>
+</header>
+
+<h2>Your call</h2>
+<p class="sub">What only you can answer. The recommended answer is already ticked. Both questions are made up.</p>
+<form class="ask" id="ask">
+  <fieldset><legend><b>1</b>A receiver answers 4xx. Send it again?</legend>
+    <label><input type="radio" name="q1" value="do not retry a 4xx" data-rec checked><span>No, do not retry <span class="chip">recommended</span><small>The receiver read the payload and refused it. The same payload gets the same answer.</small></span></label>
+    <label><input type="radio" name="q1" value="retry a 4xx once"><span>Retry once<small>Covers a receiver that answers 4xx while it restarts.</small></span></label>
+  </fieldset>
+  <fieldset><legend><b>2</b>A retry button in the admin screen?</legend>
+    <label><input type="radio" name="q2" value="retry button later, in its own job" data-rec checked><span>Later, in its own job <span class="chip">recommended</span><small>It needs an admin screen that does not exist yet.</small></span></label>
+    <label><input type="radio" name="q2" value="retry button in this job"><span>In this job<small>Adds the screen to the scope.</small></span></label>
+  </fieldset>
+  <label class="nt">Anything else?<textarea rows="2"></textarea></label>
+  <div class="go"><button type="submit" class="btn main">Copy my answers</button><span class="say" role="status"></span></div>
+  <pre class="out" hidden></pre>
+</form>
+
+<h2>Options</h2>
+<p class="sub">The ways there were, judged on the same criteria. Every option and every value here is made up.</p>
+<h3 class="oq">Decision 1: where does a failed delivery wait?</h3>
+<div class="opts">
+  <section class="opt pick"><div class="oh"><span><b>A</b>A <code>next_try_at</code> column in the jobs table</span><span class="st ok">picked</span></div>
+    <div class="oc"><small>New moving parts</small><span class="st i ok"><span class="vh">good:</span></span>none</div>
+    <div class="oc"><small>Survives a restart</small><span class="st i ok"><span class="vh">good:</span></span>yes, the time is a row</div>
+    <div class="oc"><small>Hard to undo</small><span class="st i ok"><span class="vh">good:</span></span>no, drop the column</div>
+    <p class="ow">Picked: one column does the job, with nothing new to run.</p></section>
+  <section class="opt"><div class="oh"><span><b>B</b>A new message queue service</span><span class="st off">rejected</span></div>
+    <div class="oc"><small>New moving parts</small><span class="st i crit"><span class="vh">blocker:</span></span>one service to run and watch</div>
+    <div class="oc"><small>Survives a restart</small><span class="st i ok"><span class="vh">good:</span></span>yes</div>
+    <div class="oc"><small>Hard to undo</small><span class="st i warn"><span class="vh">risk:</span></span>yes, other code will start to use it</div>
+    <p class="ow">Rejected: a whole service for what one column does.</p></section>
+</div>
+
+<h3 class="oq">Decision 2: how long between tries?</h3>
+<div class="opts">
+  <section class="opt pick"><div class="oh"><span><b>A</b>Growing waits: 30 s, 2 min, 10 min, 1 h, 6 h</span><span class="st ok">picked</span></div>
+    <div class="oc"><small>Load on a receiver that is down</small><span class="st i ok"><span class="vh">good:</span></span>low, the gaps grow</div>
+    <div class="oc"><small>Longest outage covered</small><span class="st i ok"><span class="vh">good:</span></span>7 h 12 min 30 s in total</div>
+    <div class="oc"><small>Hard to undo</small><span class="st i ok"><span class="vh">good:</span></span>no</div>
+    <p class="ow">Picked: it covers a long outage and still retries a short one fast.</p></section>
+  <section class="opt"><div class="oh"><span><b>B</b>A fixed 1 min wait</span><span class="st off">rejected</span></div>
+    <div class="oc"><small>Load on a receiver that is down</small><span class="st i warn"><span class="vh">risk:</span></span>a try every minute, whatever happens</div>
+    <div class="oc"><small>Longest outage covered</small><span class="st i crit"><span class="vh">blocker:</span></span>5 min in total</div>
+    <div class="oc"><small>Hard to undo</small><span class="st i ok"><span class="vh">good:</span></span>no</div>
+    <p class="ow">Rejected: it gives up before a short outage is over.</p></section>
+</div>
+
+<h3 class="oq">Decision 3: where is each try recorded?</h3>
+<div class="opts">
+  <section class="opt pick"><div class="oh"><span><b>A</b>One row per try in <code>delivery_attempts</code></span><span class="st ok">picked</span></div>
+    <div class="oc"><small>Shows each try's status and duration</small><span class="st i ok"><span class="vh">good:</span></span>yes, one row each</div>
+    <div class="oc"><small>New tables</small><span class="st i ok"><span class="vh">good:</span></span>one</div>
+    <div class="oc"><small>Hard to undo</small><span class="st i warn"><span class="vh">risk:</span></span>yes, dropping the table loses the history</div>
+    <p class="ow">Picked: you can see what happened on each try. Check the migration with care.</p></section>
+  <section class="opt"><div class="oh"><span><b>B</b>A counter on the delivery row</span><span class="st off">rejected</span></div>
+    <div class="oc"><small>Shows each try's status and duration</small><span class="st i crit"><span class="vh">blocker:</span></span>no, only a count</div>
+    <div class="oc"><small>New tables</small><span class="st i ok"><span class="vh">good:</span></span>none</div>
+    <div class="oc"><small>Hard to undo</small><span class="st i ok"><span class="vh">good:</span></span>no</div>
+    <p class="ow">Rejected: it loses each try's status and duration.</p></section>
+</div>
+
+<h2>The path</h2>
+<p class="sub">A failed delivery goes from the sender to the receiver, is logged, waits in the jobs table, and the worker hands it back to the sender. The clay border marks what this job adds or changes. All names are made up.</p>
+<div class="pipe">
+  <div class="card stage hl"><div class="k">1 · changed</div><div class="t">Sender</div><p class="note"><code>app/webhooks/deliver.py</code> returns the outcome of the try.</p></div>
+  <div class="arrow" aria-hidden="true">→</div>
+  <div class="card stage"><div class="k">2 · unchanged</div><div class="t">Receiver</div><p class="note">The customer's endpoint. It does not change.</p></div>
+  <div class="arrow" aria-hidden="true">→</div>
+  <div class="card stage hl"><div class="k">3 · new</div><div class="t">Attempt log</div><p class="note">One <code>delivery_attempts</code> row per try.</p></div>
+  <div class="arrow" aria-hidden="true">→</div>
+  <div class="card stage hl"><div class="k">4 · changed</div><div class="t">Jobs table</div><p class="note">Holds <code>next_try_at</code> for each waiting delivery.</p></div>
+  <div class="arrow" aria-hidden="true">→</div>
+  <div class="card stage hl"><div class="k">5 · changed</div><div class="t">Worker</div><p class="note"><code>app/worker.py</code> finds deliveries that are due and hands them back to the sender.</p></div>
+</div>
+
+<h2>The map</h2>
+<p class="sub">Left: what this job builds. Right: what uses it. Point at a box to see its links. The dashed box comes after this job. All names are made up.</p>
+<div class="legend"><span><i></i>built now</span><span><i class="dash"></i>planned after</span><span><i class="hot"></i>the one you point at</span></div>
+<div class="map" id="map"></div>
+
+<h2>What changes</h2>
+<p class="sub">The files this job touches. The caller counts and the files are made up.</p>
+<div class="sum"><span><b class="sg mod">~</b> 3 changed</span><span><b class="sg add">+</b> 3 new</span></div>
+<ul class="chg">
+  <li class="mod"><span class="sg"><span aria-hidden="true">~</span><span class="vh">changed</span></span><span class="pa"><i>app/webhooks/</i>deliver.py</span><span class="wy">Sends one delivery. Now returns the outcome of the try.</span><span class="tg"><span class="chip">2 callers</span></span></li>
+  <li class="mod"><span class="sg"><span aria-hidden="true">~</span><span class="vh">changed</span></span><span class="pa"><i>app/</i>models.py</span><span class="wy">The new column and the new table.</span><span class="tg"><span class="chip">2 callers</span></span></li>
+  <li class="mod"><span class="sg"><span aria-hidden="true">~</span><span class="vh">changed</span></span><span class="pa"><i>app/</i>worker.py</span><span class="wy">Picks the deliveries that are due and hands them back.</span></li>
+  <li class="add"><span class="sg"><span aria-hidden="true">+</span><span class="vh">new</span></span><span class="pa"><i>migrations/</i>0042_retries.sql</span><span class="wy">The schema change.</span><span class="tg"><span class="st warn">risky path</span></span></li>
+  <li class="add"><span class="sg"><span aria-hidden="true">+</span><span class="vh">new</span></span><span class="pa"><i>tests/</i>test_retry.py</span><span class="wy">Retries a timeout, gives up after the last try, skips a 4xx.</span></li>
+  <li class="add"><span class="sg"><span aria-hidden="true">+</span><span class="vh">new</span></span><span class="pa"><i>tests/</i>test_attempts.py</span><span class="wy">Every try writes one row.</span></li>
+</ul>
+
+<h2>Build order</h2>
+<p class="sub">A wave starts when the one before it is merged and its tests pass. The packages in one wave run side by side. All names are made up.</p>
+<div class="waves">
+  <div class="wave"><div class="wk"><span>Wave 0</span><span>one package</span></div>
+    <div class="pk"><b>A</b>Schema<div class="pd">The <code>next_try_at</code> column and the <code>delivery_attempts</code> table</div></div></div>
+  <div class="wave"><div class="wk"><span>Wave 1</span><span>parallel</span></div>
+    <div class="pk"><b>B</b>Retry loop<div class="pd">The worker picks due deliveries and backs off</div></div>
+    <div class="pk"><b>C</b>Attempt log<div class="pd">One row per try, with status and duration</div></div></div>
+  <div class="wave"><div class="wk"><span>Wave 2</span><span>gate</span></div>
+    <div class="pk gate"><b>R</b>Review<div class="pd">A fresh review of the diff, then the full test run</div></div></div>
+</div>
+
+<h2>Left out on purpose</h2>
+<p class="sub">Things you might expect that this job skips. Both are made up.</p>
+<div class="grid">
+  <div class="card"><h4>A retry button in the admin screen</h4><p class="note">It needs an admin screen that does not exist yet. Question 2 above is where you can change that.</p></div>
+  <div class="card"><h4>Any change to how webhooks are signed</h4><p class="note">Signing is not part of this job. It stays as it is.</p></div>
+</div>
+
+<h2>Still open</h2>
+<p class="sub">Assumed, not checked. Both items are made up.</p>
+<div class="grid">
+  <div class="card"><h4>The worker runs every 10 s</h4><p class="note">Assumed, so a 30 s wait is honored within 10 s. Reading the worker's schedule before Wave 1 settles it.</p></div>
+  <div class="card"><h4>Receivers treat a repeated delivery id as a duplicate</h4><p class="note">Assumed, so a retry does no harm. The receiver contract settles it, or asking the receivers.</p></div>
+</div>
+
+<footer>Source: <code>example-spec.md</code> in this folder, a made-up spec. Every name, file and number on this page is an example. As of 2 Nov 2026.</footer>
+</div>
+
+<script src="linkmap.js"></script>
+<script src="ask.js"></script>
+<script>
+CrispMap.mount(document.getElementById('map'), [
+  { head: 'Schema', note: 'built in Wave 0', items: [
+    { id: 't-col', name: '<code>next_try_at</code> column', desc: 'when a waiting delivery is due again' },
+    { id: 't-table', name: '<code>delivery_attempts</code> table', desc: 'one row per try' }] },
+  { head: 'Sender', note: '<code>app/webhooks/deliver.py</code>', items: [
+    { id: 't-out', name: 'Send outcome', desc: 'what <code>deliver.py</code> returns for one try' }] }
+], [
+  { head: 'This job', note: 'built now', items: [
+    { id: 'u-loop', name: 'Retry loop', desc: '<code>app/worker.py</code>', from: ['t-col', 't-out'] },
+    { id: 'u-log', name: 'Attempt log', desc: 'writes a row for each try', from: ['t-table', 't-out'] },
+    { id: 'u-tests', name: 'Tests', desc: '<code>tests/test_retry.py</code>, <code>tests/test_attempts.py</code>', from: ['t-col', 't-table', 't-out'] }] },
+  { head: 'After this job', note: 'planned', items: [
+    { id: 'u-btn', name: 'Admin retry button', desc: 'needs an admin screen first', from: ['t-col', 't-table'], later: true }] }
+]);
+CrispAsk.mount(document.getElementById('ask'));
+</script>

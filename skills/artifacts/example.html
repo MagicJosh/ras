@@ -138,7 +138,9 @@ button.mini { cursor: pointer; }
    <span class="st i crit"><span class="vh">alarm</span></span>   the icon alone; the word stays for screen readers
    <span class="cm warn"><i style="width:74%"></i><b style="left:80%"></b></span>   a small meter, a tick per limit
    <span class="vh">read aloud only</span>      visually hidden text
-   <span class="na">no data</span>              a missing value, said in words */
+   <span class="na">no data</span>              a missing value, said in words
+   <span class="sg add"><span aria-hidden="true">+</span><span class="vh">new</span></span>   a change sign with its word
+                                                tones: add +  mod ~  del −  (a parent with the tone works too) */
 .chip { font: 11px/1.5 var(--mono); color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; background: var(--bg); }
 .ex { font: 600 10.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--clay); border: 1px solid var(--clay); border-radius: 4px; padding: 0 5px; white-space: nowrap; }
 .ok { --tone: var(--st-active); } .warn { --tone: var(--st-paused); } .crit { --tone: var(--st-flagged); } .off, .unknown { --tone: var(--st-idle); }
@@ -154,8 +156,10 @@ button.mini { cursor: pointer; }
 .cm > i { display: block; height: 100%; max-width: 100%; border-radius: 3px; background: var(--tone, var(--st-active)); }
 .cm > b { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--text); }
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.dtbox, .heat, .cells { position: relative; }  /* a .vh inside a scroll box scrolls with it, so it cannot widen the page */
+.dtbox, .heat, .cells, .code { position: relative; }  /* a .vh inside a scroll box scrolls with it, so it cannot widen the page */
 .na { color: var(--muted); font-style: italic; }
+.add { --tone: var(--st-active); } .mod { --tone: var(--st-paused); } .del { --tone: var(--st-flagged); }
+.sg { font: 700 13px var(--mono); color: var(--tone); }
 
 /* ---------- stage strip: a process in a few stages, left to right, stacked on phones ----------
    <div class="pipe">
@@ -407,6 +411,162 @@ details.tv[open] summary { margin-bottom: 8px; }
 .pk .pd { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
 .pk.gate { border-color: var(--clay); }
 @media (max-width: 860px) { .waves { grid-auto-flow: row; } }
+
+/* ---------- your call: the questions only the reader can answer, each with a recommended answer ticked ----------
+   <form class="ask" id="ask">
+     <fieldset><legend><b>1</b>The question?</legend>
+       <label><input type="radio" name="q1" value="the words for the reply" data-rec checked>
+         <span>The answer <span class="chip">recommended</span><small>Why, in one sentence.</small></span></label>
+       <label><input type="radio" name="q1" value="..."><span>Another answer<small>What it costs.</small></span></label>
+     </fieldset>
+     <label class="nt">Anything else?<textarea rows="2"></textarea></label>
+     <div class="go"><button type="submit" class="btn main">Copy my answers</button><span class="say" role="status"></span></div>
+     <pre class="out" hidden></pre>
+   </form>      then CrispAsk.mount(form) (ask.js): the button shows one reply line and copies it. */
+.ask fieldset { min-width: 0; margin: 0 0 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px 8px; }
+.ask legend { padding: 0 6px; font-weight: 600; }
+.ask legend b { font: 700 12px var(--mono); color: var(--clay); margin-right: 6px; }
+.ask label { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; cursor: pointer; }
+.ask input { flex: none; accent-color: var(--clay); }
+.ask small { display: block; font-size: 12.5px; color: var(--muted); }
+.ask .nt { display: grid; gap: 4px; cursor: default; font-size: 13px; color: var(--muted); }
+.ask textarea { width: 100%; min-height: 56px; resize: vertical; font: 14px var(--sans); color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.ask .go { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 10px; }
+.ask .main { background: var(--clay); border-color: var(--clay); color: var(--panel); font-weight: 600; }
+.ask .say { font-size: 13px; color: var(--muted); }
+.ask .out { margin-top: 10px; }
+
+/* ---------- options board: one decision's options side by side, the same criteria in the same rows ----------
+   <h3 class="oq">Decision 1: the question it settles</h3>
+   <div class="opts">
+     <section class="opt pick"><div class="oh"><span><b>A</b>Option name</span><span class="st ok">picked</span></div>
+       <div class="oc"><small>Criterion</small><span class="st i ok"><span class="vh">good:</span></span>what it means here</div>
+       ...one .oc per criterion (up to 10), the same ones in the same order in every option...
+       <p class="ow">Picked: the reason in one sentence.</p></section>
+     <section class="opt">...<span class="st off">rejected</span>...<p class="ow">Rejected: the reason.</p></section>
+   </div>      Cell icons: ok ● holds, warn ▲ a risk, crit ■ a blocker. The options wrap, and stack on a phone. */
+.oq { margin: 0 0 8px; font-size: 15px; }
+.opts + .oq { margin-top: 14px; }
+.opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); column-gap: 10px; }
+/* each option spans 12 shared rows, so row n of every option is one grid row; the rows it does not fill stay empty */
+.opt { display: grid; grid-row: span 12; grid-template-rows: subgrid; min-width: 0; margin-bottom: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.opt.pick { border-color: var(--clay); }
+.opt .oh { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 8px; padding-bottom: 8px; font-weight: 600; }
+.opt .oh b { font: 700 12px var(--mono); color: var(--clay); margin-right: 6px; }
+.opt .oc { border-top: 1px solid var(--line); padding: 6px 0; font-size: 13.5px; }
+.opt .oc small { display: block; font: 11px var(--mono); color: var(--muted); }
+.opt .oc .st.i { margin: 0 5px 0 0; }
+.opt .ow { margin: 0; border-top: 1px solid var(--line-strong); padding-top: 8px; font-size: 13px; color: var(--muted); }
+
+/* ---------- change map: the files a job touches, each with its sign, what changes in it, and its flags ----------
+   <div class="sum"><span><b class="sg mod">~</b> 2 changed</span><span><b class="sg add">+</b> 1 new</span><span><b class="sg del">−</b> 0 deleted</span></div>
+   <ul class="chg">
+     <li class="mod"><span class="sg"><span aria-hidden="true">~</span><span class="vh">changed</span></span>
+       <span class="pa"><i>app/webhooks/</i>deliver.py</span><span class="wy">What changes in it, in one sentence.</span>
+       <span class="tg"><span class="chip">2 callers</span><span class="st warn">risky path</span></span></li>
+   </ul>      li.add = new (+), li.mod = changed (~), li.del = deleted (−). The .tg flags are optional. */
+.sum { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0 2px 10px; font: 12.5px var(--mono); color: var(--muted); }
+.chg { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.chg > li { display: grid; grid-template-columns: 14px minmax(0, 17em) minmax(0, 1fr) auto; gap: 2px 10px; align-items: baseline; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--tone); border-radius: 6px; padding: 5px 10px; font-size: 13.5px; }
+.chg .pa { font: 12.5px var(--mono); overflow-wrap: anywhere; }
+.chg .pa i { font-style: normal; color: var(--muted); }
+.chg .wy { color: var(--muted); }
+.chg .tg { display: flex; flex-wrap: wrap; gap: 4px; justify-self: end; }
+@media (max-width: 760px) {
+  .chg > li { grid-template-columns: 14px minmax(0, 1fr); }
+  .chg .wy, .chg .tg { grid-column: 2; justify-self: start; }
+}
+
+/* ---------- walkthrough: one case followed step by step along a stage strip; needs "stage strip" and "spec table" ----------
+   <div class="walk" id="walk">
+     <div class="pipe"><div class="card stage" data-s="send"><div class="k">1 · sends</div><div class="t">Sender</div></div>
+       <div class="arrow" aria-hidden="true">→</div> ...</div>
+     <ol class="steps">
+       <li data-s="send"><button type="button" class="sb"><b>What happens in this step</b><span class="chip">Sender</span></button>
+         <p>The step in one or two sentences.</p>
+         <dl class="spec"><div class="d"><dt>status</dt><dd>timed out</dd></div><div><dt>tries</dt><dd>0</dd></div></dl></li>
+     </ol>
+   </div>      then CrispWalk.mount(el) (walk.js). data-s ties a step to its stage; .d marks a value the step changed.
+   Every step is in the page, so it reads in full without the script. The script opens one step at a time. */
+.ctl { display: flex; align-items: center; gap: 8px; margin: 12px 0 8px; }
+.ctl .btn { min-width: 44px; font-size: 16px; }
+.ctl .btn[aria-disabled="true"] { opacity: .45; cursor: default; }
+.ctl .pos { min-width: 92px; text-align: center; font: 600 12px var(--mono); color: var(--muted); }
+.steps { list-style: none; counter-reset: st; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+.steps > li { counter-increment: st; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+.steps > li.on { border-color: var(--clay); }
+.steps .sb { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; width: 100%; background: none; border: 0; border-radius: 8px; padding: 8px 12px; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.steps .sb::before { content: counter(st); font: 700 12px var(--mono); color: var(--clay); }
+.steps .sb b { font-weight: 600; }
+.steps p { margin: 0; padding: 0 12px 8px; max-width: 74ch; color: var(--muted); }
+.steps .spec { padding: 0 12px 10px; }
+.steps .spec .d dd { color: var(--clay); font-weight: 700; }
+.walk.js .steps > li:not(.on) > :not(.sb) { display: none; }
+
+/* ---------- annotated code: a listing with its own line numbers, marked lines and a numbered note per mark ----------
+   <figure class="anno"><figcaption>app/backoff.py · lines 14 to 15</figcaption>
+     <div class="code" tabindex="0" role="region" aria-label="backoff.py, lines 14 to 15, line 15 marked">
+       <div class="l"><i>14</i><code>def next_try_at(retries_done, now):</code></div>
+       <div class="l mk"><i>15</i><code>    if retries_done >= len(BACKOFF):</code><span class="pin">1</span></div></div>
+     <ol class="pins"><li><span><b>Line 15 is the stop.</b> Why it matters.</span></li></ol>
+   </figure>
+   A fix, before and after: every line gets a sign cell, and the changed lines .del or .add. A p.note can stand in for the pins.
+       <div class="l"><i>41</i><span class="sg"></span><code>resp = send(delivery)</code></div>
+       <div class="l del"><i>42</i><span class="sg"><span aria-hidden="true">−</span><span class="vh">removed</span></span><code>...</code></div>
+       <div class="l add"><i>42</i><span class="sg"><span aria-hidden="true">+</span><span class="vh">added</span></span><code>...</code></div>
+   The listing scrolls sideways inside its own box, so it takes focus (tabindex) and has a name (aria-label). */
+.anno { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 10px 20px; align-items: start; margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px 14px; }
+.anno + .anno, .anno + .grid, .grid + .anno { margin-top: 14px; }
+.anno figcaption { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font: 600 12.5px var(--mono); color: var(--muted); }
+.anno .note { margin: 0; }
+.code { overflow-x: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 0; font: 12.5px/1.7 var(--mono); }
+.code .l { display: flex; align-items: baseline; min-width: max-content; border-left: 3px solid transparent; padding-right: 12px; }
+.code .l > i { flex: none; width: 3em; padding-right: 10px; text-align: right; font-style: normal; color: var(--muted); user-select: none; }
+.code .l > .sg { flex: none; width: 1.4em; }
+.code .l > code { font-size: inherit; white-space: pre; }
+.code .l.mk { background: var(--hover); border-left-color: var(--clay); }
+.code .l.add, .code .l.del { background: color-mix(in srgb, var(--tone) 14%, transparent); }
+.pin, .pins > li::before { display: inline-grid; place-items: center; flex: none; width: 17px; height: 17px; border-radius: 50%; background: var(--clay); color: var(--panel); font: 700 10.5px var(--mono); }
+.code .pin { margin-left: 12px; align-self: center; }
+.pins { list-style: none; counter-reset: pin; margin: 0; padding: 0; font-size: 13.5px; }
+.pins > li { counter-increment: pin; display: grid; grid-template-columns: 17px minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.pins > li + li { margin-top: 10px; }
+.pins > li::before { content: counter(pin); }
+@media (max-width: 860px) { .anno { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- why chain: a claim and the reasons under it, each link with its evidence ----------
+   <ol class="why">
+     <li><span class="w">claim</span><span>What is true.</span><span class="e"><span class="chip">read: backoff.py:12</span></span></li>
+     <li><span class="w">because</span><span>The reason.</span><span class="e"><span class="st unknown">assumed</span></span></li>
+     <li><span class="w">so</span><span>What follows.</span><span class="e"><span class="chip">computed: 30 + 120 s</span></span></li>
+   </ol>      Link words: claim, because, so, but. Evidence: read, ran, computed, "follows from the line above", or assumed. */
+.why { list-style: none; margin: 0 0 0 6px; padding: 0; }
+.why > li { position: relative; display: grid; grid-template-columns: 66px minmax(0, 1fr) auto; gap: 2px 12px; align-items: baseline; border-left: 2px solid var(--line-strong); padding: 7px 0 7px 16px; }
+.why > li + li { margin-top: 0; }
+.why > li::before { content: ""; position: absolute; left: -5px; top: 14px; width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); }
+.why > li:first-child { font-weight: 600; }
+.why > li:first-child::before { background: var(--clay); }
+.why .w { font: 600 11px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.why .e { justify-self: end; font-weight: 400; }
+@media (max-width: 760px) {
+  .why > li { grid-template-columns: minmax(0, 1fr); }
+  .why .e { justify-self: start; }
+}
+
+/* ---------- analogy pairs: a picture the reader knows beside the system, pair by pair ----------
+   <div class="ana">
+     <div><span class="hd">A parcel courier</span><span></span><span class="hd">The retry system</span></div>
+     <div><span class="a">The picture's side of the pair</span><span class="eq">=</span><span class="b">The system's side</span></div>
+   </div>
+   <p class="note"><b>Where the picture breaks.</b> The first place it stops being true.</p>
+   Dashed is the picture, solid is the system. The two sides stay side by side on a phone. */
+.ana { display: grid; gap: 6px; }
+.ana > div { display: grid; grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr); }
+.ana .a, .ana .b { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13.5px; }
+.ana .a { border-style: dashed; }
+.ana .eq { align-self: center; text-align: center; font: 14px var(--mono); color: var(--muted); }
+.ana .hd { padding: 0 2px; font: 600 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.ana + .note { margin-top: 10px; }
 
 /* ---------- spec page: the view of specs/current.md that spec-page.mjs builds and spec-page.js renders ----------
    <div class="tools"><button class="btn">Edit text</button><span class="say" role="status"></span></div>

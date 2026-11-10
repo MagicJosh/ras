@@ -44,6 +44,7 @@
       <div><dt>The icon alone, beside a number</dt><dd>84<span class="st i warn"><span class="vh">warn</span></span></dd></div>
       <div><dt>A small meter, a tick per limit</dt><dd>74 <small>%</small><span class="cm ok"><i style="width:74%"></i><b style="left:80%"></b><b style="left:90%"></b></span></dd></div>
       <div><dt>A missing value, in words</dt><dd><span class="na">no data</span></dd></div>
+      <div><dt>A change sign: new, changed, deleted</dt><dd><span class="sg add"><span aria-hidden="true">+</span><span class="vh">new</span></span> <span class="sg mod"><span aria-hidden="true">~</span><span class="vh">changed</span></span> <span class="sg del"><span aria-hidden="true">−</span><span class="vh">deleted</span></span></dd></div>
     </dl>
   </div>
 </div>
@@ -171,6 +172,155 @@
 </div>
 <details class="tv"><summary>Show the markup</summary><pre data-of="d-waves"></pre></details>
 
+<h2>Your call</h2>
+<p class="sub">The questions only the reader can answer, first on a plan page. Each has a recommended answer, already ticked. The button builds one reply line, shows it and copies it: "yes" when every recommended answer stands, else each answer by its number. Inline: <code>parts.css</code> "your call" and <code>ask.js</code>. The questions are made up.</p>
+<div id="d-ask" data-part="your call">
+  <form class="ask" id="ask">
+    <fieldset><legend><b>1</b>A receiver answers 4xx. Send it again?</legend>
+      <label><input type="radio" name="q1" value="do not retry a 4xx" data-rec checked><span>No, do not retry <span class="chip">recommended</span><small>The receiver read the payload and refused it. The same payload gets the same answer.</small></span></label>
+      <label><input type="radio" name="q1" value="retry a 4xx once"><span>Retry once<small>Covers a receiver that answers 4xx while it restarts.</small></span></label>
+    </fieldset>
+    <fieldset><legend><b>2</b>A retry button in the admin screen?</legend>
+      <label><input type="radio" name="q2" value="retry button later, in its own job" data-rec checked><span>Later, in its own job <span class="chip">recommended</span><small>It needs an admin screen that does not exist yet.</small></span></label>
+      <label><input type="radio" name="q2" value="retry button in this job"><span>In this job<small>Adds the screen to the scope.</small></span></label>
+    </fieldset>
+    <label class="nt">Anything else?<textarea rows="2"></textarea></label>
+    <div class="go"><button type="submit" class="btn main">Copy my answers</button><span class="say" role="status"></span></div>
+    <pre class="out" hidden></pre>
+  </form>
+</div>
+<details class="tv"><summary>Show the markup and call</summary><pre data-of="d-ask" data-calls="ask"></pre></details>
+
+<h2>Options board</h2>
+<p class="sub">One decision's options side by side, judged on the same criteria in the same rows. Each cell is an icon shape and words: ● holds, ▲ is a risk, ■ is a blocker. The clay border marks the option that was picked, and a rejected option keeps its reason. The options wrap, and stack on a phone. Inline: <code>parts.css</code> "options board". All values are made up.</p>
+<div id="d-opts" data-part="options board">
+  <h3 class="oq">Decision 1: where does a failed delivery wait?</h3>
+  <div class="opts">
+    <section class="opt pick">
+      <div class="oh"><span><b>A</b>A column in the jobs table</span><span class="st ok">picked</span></div>
+      <div class="oc"><small>New moving parts</small><span class="st i ok"><span class="vh">good:</span></span>none</div>
+      <div class="oc"><small>Survives a restart</small><span class="st i ok"><span class="vh">good:</span></span>yes, the time is a row</div>
+      <div class="oc"><small>Hard to undo</small><span class="st i ok"><span class="vh">good:</span></span>no, drop the column</div>
+      <p class="ow">Picked: one column does the job, with nothing new to run.</p>
+    </section>
+    <section class="opt">
+      <div class="oh"><span><b>B</b>A new queue service</span><span class="st off">rejected</span></div>
+      <div class="oc"><small>New moving parts</small><span class="st i crit"><span class="vh">blocker:</span></span>one service to run and watch</div>
+      <div class="oc"><small>Survives a restart</small><span class="st i ok"><span class="vh">good:</span></span>yes</div>
+      <div class="oc"><small>Hard to undo</small><span class="st i warn"><span class="vh">risk:</span></span>yes, other code will start to use it</div>
+      <p class="ow">Rejected: a whole service for what one column does.</p>
+    </section>
+    <section class="opt">
+      <div class="oh"><span><b>C</b>A timer inside the worker</span><span class="st off">rejected</span></div>
+      <div class="oc"><small>New moving parts</small><span class="st i ok"><span class="vh">good:</span></span>none</div>
+      <div class="oc"><small>Survives a restart</small><span class="st i crit"><span class="vh">blocker:</span></span>no, the waits live in memory</div>
+      <div class="oc"><small>Hard to undo</small><span class="st i ok"><span class="vh">good:</span></span>no</div>
+      <p class="ow">Rejected: one deploy during a wait drops the retry.</p>
+    </section>
+  </div>
+</div>
+<details class="tv"><summary>Show the markup</summary><pre data-of="d-opts"></pre></details>
+
+<h2>Change map</h2>
+<p class="sub">The files a job touches: a sign and a word for new, changed or deleted, the path, what changes in it, and its flags, such as the number of callers or a risky path. The line above the list counts them. Inline: <code>parts.css</code> "change map". All names are made up.</p>
+<div id="d-chg" data-part="change map">
+  <div class="sum"><span><b class="sg mod">~</b> 2 changed</span><span><b class="sg add">+</b> 2 new</span><span><b class="sg del">−</b> 1 deleted</span></div>
+  <ul class="chg">
+    <li class="mod"><span class="sg"><span aria-hidden="true">~</span><span class="vh">changed</span></span><span class="pa"><i>app/webhooks/</i>deliver.py</span><span class="wy">Sends one delivery. Now returns the outcome of the try.</span><span class="tg"><span class="chip">2 callers</span></span></li>
+    <li class="mod"><span class="sg"><span aria-hidden="true">~</span><span class="vh">changed</span></span><span class="pa"><i>app/</i>worker.py</span><span class="wy">Picks the deliveries that are due and hands them back.</span></li>
+    <li class="add"><span class="sg"><span aria-hidden="true">+</span><span class="vh">new</span></span><span class="pa"><i>migrations/</i>0042_retries.sql</span><span class="wy">The schema change.</span><span class="tg"><span class="st warn">risky path</span></span></li>
+    <li class="add"><span class="sg"><span aria-hidden="true">+</span><span class="vh">new</span></span><span class="pa"><i>tests/</i>test_retry.py</span><span class="wy">Retries a timeout, gives up after the last try, skips a 4xx.</span></li>
+    <li class="del"><span class="sg"><span aria-hidden="true">−</span><span class="vh">deleted</span></span><span class="pa"><i>app/webhooks/</i>resend_once.py</span><span class="wy">The old single resend. The retry loop replaces it.</span><span class="tg"><span class="chip">0 callers left</span></span></li>
+  </ul>
+</div>
+<details class="tv"><summary>Show the markup</summary><pre data-of="d-chg"></pre></details>
+
+<h2>Walkthrough</h2>
+<p class="sub">One case followed step by step along a stage strip. The open step marks the stage it happens in, and the clay value is what that step changed. Use the arrow buttons, a step's own button, or ← and → once a button has focus. Without the script all steps show in full. Inline: <code>parts.css</code> "walkthrough", "stage strip" and "spec table", and <code>walk.js</code>. All values are made up.</p>
+<div id="d-walk" data-part="walkthrough">
+  <p><span class="ex">example values</span> Delivery 8841, from its first failure to its second try:</p>
+  <div class="walk" id="walk">
+    <div class="pipe">
+      <div class="card stage" data-s="send"><div class="k">1 · sends</div><div class="t">Sender</div><p class="note">Posts one delivery and reports the outcome.</p></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="card stage" data-s="jobs"><div class="k">2 · schedules</div><div class="t">Jobs table</div><p class="note">Holds the time of the next try.</p></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="card stage" data-s="work"><div class="k">3 · wakes</div><div class="t">Worker</div><p class="note">Looks for due deliveries every 10 s.</p></div>
+    </div>
+    <ol class="steps">
+      <li data-s="send"><button type="button" class="sb"><b>The receiver does not answer</b><span class="chip">Sender</span></button>
+        <p>The sender posts delivery 8841 and waits. At 14:02:00 it gives up: no answer came back.</p>
+        <dl class="spec"><div class="d"><dt>status</dt><dd>timed out</dd></div><div><dt>next_try_at</dt><dd>none</dd></div></dl></li>
+      <li data-s="jobs"><button type="button" class="sb"><b>The next try gets a time</b><span class="chip">Jobs table</span></button>
+        <p>The first wait is 30 s, so the row gets 14:02:30. From here the delivery just sits in the table. Nothing is running for it.</p>
+        <dl class="spec"><div class="d"><dt>status</dt><dd>waiting</dd></div><div class="d"><dt>next_try_at</dt><dd>14:02:30</dd></div></dl></li>
+      <li data-s="work"><button type="button" class="sb"><b>The worker finds it due</b><span class="chip">Worker</span></button>
+        <p>The worker asks for rows whose time has passed. At 14:02:34 it finds this one and hands it back to the sender.</p>
+        <dl class="spec"><div class="d"><dt>status</dt><dd>due</dd></div><div><dt>next_try_at</dt><dd>14:02:30</dd></div></dl></li>
+      <li data-s="send"><button type="button" class="sb"><b>The second try lands</b><span class="chip">Sender</span></button>
+        <p>The receiver answers 200. The time is cleared, and the delivery is done after one retry.</p>
+        <dl class="spec"><div class="d"><dt>status</dt><dd>delivered</dd></div><div class="d"><dt>next_try_at</dt><dd>none</dd></div></dl></li>
+    </ol>
+  </div>
+</div>
+<details class="tv"><summary>Show the markup and call</summary><pre data-of="d-walk" data-calls="walkthrough"></pre></details>
+
+<h2>Annotated code</h2>
+<p class="sub">A listing with the file's own line numbers, a mark on each line that matters and a numbered note beside it. A fix shows as the removed line, the added line and why. The listing scrolls sideways inside its own box. There are no syntax colors: the marks carry the meaning. Inline: <code>parts.css</code> "annotated code". The code is made up.</p>
+<div id="d-anno" data-part="annotated code">
+  <figure class="anno"><figcaption>app/webhooks/backoff.py · lines 12 to 17 <span class="ex">example code</span></figcaption>
+    <div class="code" tabindex="0" role="region" aria-label="backoff.py, lines 12 to 17, lines 15 and 17 marked">
+      <div class="l"><i>12</i><code>BACKOFF = [30, 120, 600, 3600, 21600]  # seconds</code></div>
+      <div class="l"><i>13</i><code> </code></div>
+      <div class="l"><i>14</i><code>def next_try_at(retries_done: int, now: datetime) -&gt; datetime | None:</code></div>
+      <div class="l mk"><i>15</i><code>    if retries_done &gt;= len(BACKOFF):</code><span class="pin">1</span></div>
+      <div class="l"><i>16</i><code>        return None</code></div>
+      <div class="l mk"><i>17</i><code>    return now + timedelta(seconds=BACKOFF[retries_done])</code><span class="pin">2</span></div>
+    </div>
+    <ol class="pins">
+      <li><span><b>Line 15 is the stop.</b> With 5 retries done there is no 6th wait in the list. The function returns nothing and the delivery is marked failed.</span></li>
+      <li><span><b>Line 17 is the wait.</b> The count of retries done picks the wait: 0 picks 30 s, 4 picks 6 h. The list on line 12 is the whole policy.</span></li>
+    </ol>
+  </figure>
+  <figure class="anno"><figcaption>The fix: stop retrying a 4xx · app/webhooks/deliver.py <span class="ex">example code</span></figcaption>
+    <div class="code" tabindex="0" role="region" aria-label="deliver.py, line 42 before and after the fix">
+      <div class="l"><i>41</i><span class="sg"></span><code>resp = send(delivery)</code></div>
+      <div class="l del"><i>42</i><span class="sg"><span aria-hidden="true">−</span><span class="vh">removed</span></span><code>if resp.status &gt;= 400:</code></div>
+      <div class="l add"><i>42</i><span class="sg"><span aria-hidden="true">+</span><span class="vh">added</span></span><code>if resp.status &gt;= 500 or resp.timed_out:</code></div>
+      <div class="l"><i>43</i><span class="sg"></span><code>    schedule_retry(delivery)</code></div>
+    </div>
+    <p class="note"><b>Why the fix works.</b> A 4xx means the receiver read the payload and refused it. The old line treated every status from 400 up as worth another try, so a refused payload went out 5 more times. The new line retries only when the receiver broke or never answered.</p>
+  </figure>
+</div>
+<details class="tv"><summary>Show the markup</summary><pre data-of="d-anno"></pre></details>
+
+<h2>Why chain</h2>
+<p class="sub">A claim and the reasons under it. Every link names its evidence: read, ran, computed, follows from the line above, or assumed. A guess then looks like a guess, so the reader knows what to question. Inline: <code>parts.css</code> "why chain". All values are made up.</p>
+<div id="d-why" data-part="why chain">
+  <ol class="why">
+    <li><span class="w">claim</span><span>Retries wait 30 s, then longer each time, and stop after 5.</span><span class="e"><span class="chip">read: backoff.py:12</span></span></li>
+    <li><span class="w">because</span><span>A receiver that just failed is most likely still down one second later.</span><span class="e"><span class="st unknown">assumed</span></span></li>
+    <li><span class="w">so</span><span>Five quick retries would all fail, and the delivery would be given up while the receiver is still coming back.</span><span class="e"><span class="chip">follows from the line above</span></span></li>
+    <li><span class="w">so</span><span>Each wait is longer than the last. The five waits add up to 7 h 12 min 30 s.</span><span class="e"><span class="chip">computed: 30 + 120 + 600 + 3600 + 21600 s</span></span></li>
+    <li><span class="w">but</span><span>A receiver that is down for longer than that needs a person, so the 5th failed retry ends it.</span><span class="e"><span class="st unknown">assumed</span></span></li>
+  </ol>
+</div>
+<details class="tv"><summary>Show the markup</summary><pre data-of="d-why"></pre></details>
+
+<h2>Analogy pairs</h2>
+<p class="sub">A picture the reader already knows, mapped to the system pair by pair. Dashed is the picture, solid is the system. The note under the pairs says where the picture stops being true. Inline: <code>parts.css</code> "analogy pairs". All values are made up.</p>
+<div id="d-ana" data-part="analogy pairs">
+  <div class="ana">
+    <div><span class="hd">A parcel courier</span><span></span><span class="hd">The retry system</span></div>
+    <div><span class="a">Nobody opens the door, so the courier leaves a card</span><span class="eq">=</span><span class="b">A timeout or a 5xx is logged as one row</span></div>
+    <div><span class="a">The courier comes back, and waits longer each time</span><span class="eq">=</span><span class="b">Waits of 30 s, 2 min, 10 min, 1 h, 6 h</span></div>
+    <div><span class="a">After the last visit the parcel goes back to the depot</span><span class="eq">=</span><span class="b">After 5 retries the delivery is marked failed</span></div>
+    <div><span class="a">Wrong address: coming back will not help</span><span class="eq">=</span><span class="b">A 4xx is not retried</span></div>
+  </div>
+  <p class="note"><b>Where the picture breaks.</b> A courier sees a closed door. The sender sees nothing at all, which is why it needs a timeout to decide that nobody is home.</p>
+</div>
+<details class="tv"><summary>Show the markup</summary><pre data-of="d-ana"></pre></details>
+
 <h2>Stat tiles</h2>
 <p class="sub">A few headline numbers, each against its limits. A state shows as a color, an icon and a word; a tile without limits makes no verdict; a missing reading says "no data", never 0. Inline: <code>parts.css</code> "stat tiles", <code>chart.js</code> and <code>data.js</code>. All values are made up.</p>
 <div id="d-tiles" data-part="stat tiles">
@@ -279,12 +429,14 @@
 </div>
 <details class="tv"><summary>Show the markup and call</summary><pre data-of="d-term" data-calls="term"></pre></details>
 
-<footer>Sources: this folder's <code>style.css</code>, <code>parts.css</code>, <code>chart.js</code>, <code>data.js</code>, <code>linkmap.js</code> and <code>terminal.js</code>. Every value, name and limit on this page is made up, the numbers with <code>CrispChart.rng</code>. As of 10 Nov 2026.</footer>
+<footer>Sources: this folder's <code>style.css</code>, <code>parts.css</code>, <code>chart.js</code>, <code>data.js</code>, <code>linkmap.js</code>, <code>ask.js</code>, <code>walk.js</code> and <code>terminal.js</code>. Every value, name and limit on this page is made up, the numbers with <code>CrispChart.rng</code>. As of 10 Nov 2026.</footer>
 </div>
 
 <script src="chart.js"></script>
 <script src="data.js"></script>
 <script src="linkmap.js"></script>
+<script src="ask.js"></script>
+<script src="walk.js"></script>
 <script src="terminal.js"></script>
 <script>
 /* every value below is example data from seeded generators; captions and aria-labels describe exactly what it draws */
@@ -312,6 +464,14 @@ const calls = {
         { id: 'p-host', name: 'Host record', desc: 'its jobs and its events', from: ['t-jobs', 't-events'] },
         { id: 'p-fail', name: 'Failed jobs per host', desc: 'error codes over time', from: ['t-jobs'], later: true }] }  // later: planned
     ]);
+  },
+
+  ask() {
+    CrispAsk.mount(document.getElementById('ask'));
+  },
+
+  walkthrough() {
+    CrispWalk.mount(document.getElementById('walk'));
   },
 
   tiles() {

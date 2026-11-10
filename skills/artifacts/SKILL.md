@@ -37,6 +37,13 @@ A page that mixes kinds follows the guide of its main question and borrows secti
 | What feeds what: sources left, their users right | link map | "link map" + `linkmap.js` | `CrispMap.mount(el, left, right)` |
 | A sketch of a screen or dashboard | mock dashboard | "mock dashboard", "panel grid", "cell grid" | |
 | Work in waves or phases | build order | "build order" | |
+| Questions only the reader can answer, each with a recommended answer | your call | "your call" + `ask.js` | `CrispAsk.mount(form)` |
+| One decision's options against the same criteria | options board | "options board" | |
+| The files a job touches: new, changed, deleted | change map | "change map" | |
+| One case followed step by step through a process | walkthrough | "walkthrough", "stage strip", "spec table" + `walk.js` | `CrispWalk.mount(el)` |
+| A few lines of a file with notes on the lines that matter, or a fix as removed and added lines | annotated code | "annotated code" | |
+| A claim, its reasons, and the evidence for each | why chain | "why chain" | |
+| A familiar picture mapped to the system pair by pair | analogy pairs | "analogy pairs" | |
 | A few headline numbers, each against its limits | stat tiles | "stat tiles" + `chart.js` + `data.js` | `CrispData.tiles(el, list)` |
 | Several panels sharing the page | panel grid | "panel grid" | `.gd > .panel.spanN` with a `.ph` header |
 | Numbers over time, against limits or bands | line chart | "charts" + `chart.js` | `CrispChart.render(id, o)` |
@@ -109,6 +116,6 @@ The lint checks what a script can see; the preview look checks the layout.
 
 ## Changing this skill
 
-A part joins this folder once a real page has proved it. A new part gets a test in `check.mjs` and a demo in `gallery.html`, in a block marked `data-part="<its parts.css section name>"`. A new kind of page gets a guide in `guides/` and a row in the guides table.
+A part joins this folder once a real page has proved it. A new part gets a test in `check.mjs` and a demo in `gallery.html`, in a block marked `data-part="<its parts.css section name>"`. A new kind of page gets a guide in `guides/` and a row in the guides table. A guide with a worked example keeps the example's sections in step with its table.
 
-After any edit here, run `node check.mjs` in this folder and see PASS. It tests the scripts, the spec page and the lint, checks that `example.html` matches a fresh build of `example-spec.md`, lints `example.html` and `gallery.html`, and checks that every guide is linked from this file, every link resolves, and every `parts.css` section has its demo. Rebuild the example with `node spec-page.mjs build example-spec.md example.html --date "2 Nov 2026" --example`.
+After any edit here, run `node check.mjs` in this folder and see PASS. It tests the scripts, the spec page and the lint, checks that `example.html` matches a fresh build of `example-spec.md`, lints `example.html`, `gallery.html` and the two worked examples (`example-plan.html`, `example-explainer.html`), checks that each worked example's sections are rows of its guide's table, in the guide's order, and checks that every guide is linked from this file, every link resolves, and every `parts.css` section has its demo. Rebuild the example with `node spec-page.mjs build example-spec.md example.html --date "2 Nov 2026" --example`.

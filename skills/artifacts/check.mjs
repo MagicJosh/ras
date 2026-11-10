@@ -1,7 +1,8 @@
 // Runnable check for this folder: node check.mjs (exits non-zero on failure)
-// Tests terminal.js, chart.js, data.js and linkmap.js logic, the lint on good and bad pages, the spec page (spec-page.mjs
-// and spec-page.js: parse, cksum, build, save shape, merge), and lints example.html and gallery.html. Then the docs:
-// every guide is linked from SKILL.md, every relative link resolves, every parts.css section has a demo in gallery.html.
+// Tests terminal.js, chart.js, data.js, linkmap.js, ask.js and walk.js logic, the lint on good and bad pages, the spec
+// page (spec-page.mjs and spec-page.js: parse, cksum, build, save shape, merge), and lints the example pages and
+// gallery.html. Then the docs: every guide is linked from SKILL.md, every relative link resolves, every parts.css section
+// has a demo in gallery.html, and each worked example keeps the section order of its guide.
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
@@ -215,10 +216,27 @@ assert.deepEqual(plain(links([{ items: [{ id: 'p1', from: ['a', 'b'] }, { id: 'p
 assert.equal(path({ right: 100, top: 10, height: 20 }, { left: 300, top: 50, height: 40 }, { left: 0, top: 0 }),
   'M100.0,20.0 C200.0,20.0 200.0,70.0 300.0,70.0');
 
+// ---------- ask.js: the reply line and the status line ----------
+const { reply, status } = load('ask.js', 'CrispAsk');
+const rec = { value: 'do not retry a 4xx', rec: true }, own = { value: 'retry once', rec: false };
+assert.equal(reply([rec, rec]), 'yes');  // every recommended answer stands
+assert.equal(reply([rec, own], ' ask ops first '), '1: do not retry a 4xx; 2: retry once. Note: ask ops first');
+assert.equal(reply([null, rec]), '1: no answer; 2: do not retry a 4xx');  // an open question is never a yes
+assert.equal(reply([rec], 'one more thing'), 'yes. Note: one more thing');
+assert.equal(reply([], 'only a note'), 'Note: only a note');
+assert.equal(reply([null, null], '  '), '');  // nothing to send
+assert.equal(status(true, null), 'Copied: paste it in the terminal.');
+assert.equal(status(false, true), 'Saved on this page. The line below is selected: copy it by hand.');
+assert.match(status(true, false), /^Not saved on this page/);  // a failed save is said, never passed off as saved
+
+// ---------- walk.js: the arrows stay inside the steps ----------
+const { step } = load('walk.js', 'CrispWalk');
+assert.deepEqual([step(0, 'ArrowLeft', 5), step(2, 'ArrowRight', 5), step(4, 'ArrowRight', 5), step(2, 'Enter', 5)], [0, 3, 4, null]);
+
 // ---------- lint.mjs: a page made the documented way passes; each broken rule is caught ----------
 const good = `<title>Lint Fixture Page</title>\n<meta name="claude:viewport-fit-sides" content="cover">\n` +
   `<style>${read('style.css')}${read('parts.css')}</style>\n<div class="wrap"><i style="background:var(--st-active)"></i></div>\n` +
-  `<script>${read('terminal.js')}${read('chart.js')}${read('data.js')}${read('linkmap.js')}</script>\n`;
+  `<script>${read('terminal.js')}${read('chart.js')}${read('data.js')}${read('linkmap.js')}${read('ask.js')}${read('walk.js')}</script>\n`;
 assert.deepEqual(lintText(good), { errors: [], warnings: [] });
 const errs = page => lintText(page).errors.join('\n');
 const bad = good.replace('</style>', '.x { color: #fff; border-color: white } .y { --data: #abc; }</style>') +
@@ -304,7 +322,7 @@ assert.deepEqual(merge(exMd + 'x', EX).changes, []);  // an unedited page never 
 // the lint lets a self-saving page keep the publish skeleton in a script, and still catches a real doctype
 assert.deepEqual(lintText(good + `<script>const SKELETON = '${pctx.P.SKELETON}';</script>`).errors, []);
 
-for (const page of ['example.html', 'gallery.html']) {
+for (const page of ['example.html', 'example-plan.html', 'example-explainer.html', 'gallery.html']) {
   const res = lintFile(fileURLToPath(new URL('./' + page, import.meta.url)));
   assert.deepEqual(res, { errors: [], warnings: [] }, page + ' lint:\n' + res.errors.join('\n'));
 }
@@ -318,8 +336,19 @@ for (const doc of ['SKILL.md', ...guides.map(g => 'guides/' + g)])
     if (!/^[a-z]+:/.test(href)) assert.ok(existsSync(new URL(href, new URL('./' + doc, import.meta.url))), `${doc}: broken link ${href}`);
 // a part's demo lives in a gallery block marked data-part="<its parts.css section>"; the spec page's demo is example.html
 const sections = [...read('parts.css').matchAll(/^\/\* -{10} ([a-z ]+?)(?::| -{10})/gm)].map(m => m[1]);
-assert.ok(sections.length >= 13, 'parts.css sections not found');
+assert.ok(sections.length >= 20, 'parts.css sections not found');
 const demos = [...read('gallery.html').matchAll(/data-part="([^"]*)"/g)].flatMap(m => m[1].split(',').map(s => s.trim()));
 for (const s of sections) if (s !== 'spec page') assert.ok(demos.includes(s), `gallery.html has no demo marked data-part="${s}"`);
+// a worked example follows its guide: each of its h2 sections is a row of the guide's table, in the guide's order
+for (const [page, guide] of [['example-plan.html', 'guides/plan.md'], ['example-explainer.html', 'guides/explainer.md']]) {
+  const order = [...read(guide).matchAll(/^\| ([A-Z][^|]*?) \|/gm)].map(m => m[1]);
+  const heads = [...read(page).matchAll(/<h2>([^<]*)<\/h2>/g)].map(m => m[1]);
+  assert.ok(heads.length >= 5, `${page}: its sections were not found`);
+  heads.reduce((last, h) => {
+    const at = order.indexOf(h);
+    assert.ok(at > last, `${page}: section "${h}" is not in ${guide}, or is out of its order`);
+    return at;
+  }, -1);
+}
 
-console.log('artifacts skill terminal.js, chart.js, data.js, linkmap.js, lint.mjs, spec-page.mjs, spec-page.js, example.html, gallery.html, guides and links: PASS');
+console.log('artifacts skill terminal.js, chart.js, data.js, linkmap.js, ask.js, walk.js, lint.mjs, spec-page.mjs, spec-page.js, the example pages, gallery.html, guides and links: PASS');
