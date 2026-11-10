@@ -1,6 +1,58 @@
-# Data pages
+# Data page
 
-How to lay out a page full of numbers with the parts of this skill, and why the data rules in `SKILL.md` are what they are. `gallery.html` shows every case below with example values.
+A data page is full of numbers: a dashboard-style page, a status overview, a comparison. Its reader wants one value fast, with its unit, its source and where it sits against its limit. The parts do most of this when you pass them units, limits and sources.
+
+The data rules below hold for every tile, table, chart, heatmap and meter, on any kind of page. [`../gallery.html`](../gallery.html) shows every case in this guide with example values, and the markup and call of each.
+
+## Data rules
+
+- **A unit on every number:** in the table header, after the tile value, on the chart axis label, or as the panel header's `.pu`. A unit only in the prose does not count.
+- **One format.** Numbers go through `CrispChart.fmt`: thousands separators, fixed decimals per column, a real minus, a space before the unit ("74 %", "16.30 s"). Dates read "2 Nov 2026", times are 24 h, and the time zone is named on the axis.
+- **Missing is said, never 0.** A missing reading is a gap in a line, "no data" in a cell or tile, a hatched heatmap cell. Pass `null`, never 0 or a blank.
+- **Color has one job per chart.** `--st-*` colors mean a state, and every state also shows an icon and a word (`.st` chips). `--s1` to `--s6` mean which series. Never mix the two in one chart. Text never takes a series color: names use the text color, joined to their line by a short colored key line.
+- **Names at the line ends.** `chart.js` swaps in a legend only when the names do not fit. A one-series bar chart needs neither: the panel title names it.
+- **Limits are drawn and named.** A limit is a dashed line or a shaded band with its label ("IDLE ≤ 30 %"). A tile or meter that judges a value shows its limits in words; with no limits, it shows no verdict.
+- **Every chart has words and numbers.** An `aria-label` that says what the drawn data shows, a `.cap` sentence with the finding, and, for a key chart, its numbers in a `details.tv` table twin (`CrispChart.tableOf`).
+- **Small text is `--muted`**, never `--faint`, so it stays readable in both themes.
+
+The sections from "Labels and formats" on give the detail and the reason behind each rule.
+
+## Sections, in order
+
+Go from "what is it now" to "how did it get there" to "which one exactly". Use a section only when the page has that content. The header and the footer are always there.
+
+| Section | The reader asks | Part |
+|---|---|---|
+| Header | What is this, for which period? | Page frame. The `.meta` line names the window, the time zone and the as-of date. |
+| Now | What is it now, and is it fine? | Stat tiles. |
+| Over time | How did it change? | Panel grid of charts. |
+| Which one | Which one, and what are its numbers? | Data table. |
+| Where | Where on the grid? | Heatmap. |
+| Fixed facts | What is this thing? | Spec table. |
+| Footer | Where do these numbers come from? | The sources and the as-of date. |
+
+```html
+<h2>Now</h2>
+<p class="sub">What these numbers cover, and their source.</p>
+<div class="tiles" id="kpi"></div>
+
+<h2>Over time</h2>
+<p class="sub">The window and the time zone.</p>
+<div class="gd">
+  <section class="panel span8">
+    <div class="ph"><h3>What, for which thing</h3><span class="pu">unit, window</span><span class="ps">source</span></div>
+    <svg class="ch" id="ch-main" viewBox="0 0 620 250" role="img" aria-label="What the drawn data shows, with its numbers."></svg>
+    <div class="cap">One sentence with the finding and its numbers.</div>
+    <details class="tv"><summary>Show the numbers</summary><div id="ch-main-t"></div></details>
+  </section>
+  <section class="panel span4">...a ranking beside it...</section>
+</div>
+
+<h2>Which one</h2>
+<div id="t-detail"></div>
+```
+
+A report that leads with findings follows [`report.md`](report.md) and uses these same rules.
 
 ## Pick the part by the reader's question
 
@@ -73,3 +125,7 @@ The `dataviz` skill gives a method and a placeholder palette. Here the method ru
 - **Hidden bar values.** A vertical bar's value label is left out when it is wider than its bar's slot. The readout still shows it.
 - **Estimated text width.** Label room is estimated at 6.3 px per character, not measured. A label with very wide characters can run slightly past its slot.
 - **Page-wide class names.** `.ok`, `.warn`, `.crit`, `.off` and `.unknown` set a `--tone` variable wherever they appear, so do not reuse these names for other things on a page that inlines the "tags" section.
+
+## Done when
+
+Every number has its unit and its source on the page, every chart has an `aria-label`, a `.cap` and (for a key chart) a table twin, and every made-up value sits in a block tagged `.ex`. `node lint.mjs <page>` prints PASS.

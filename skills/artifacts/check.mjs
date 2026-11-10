@@ -1,7 +1,8 @@
 // Runnable check for this folder: node check.mjs (exits non-zero on failure)
 // Tests terminal.js, chart.js, data.js and linkmap.js logic, the lint on good and bad pages, the spec page (spec-page.mjs
-// and spec-page.js: parse, cksum, build, save shape, merge), and lints example.html and gallery.html.
-import { readFileSync } from 'node:fs';
+// and spec-page.js: parse, cksum, build, save shape, merge), and lints example.html and gallery.html. Then the docs:
+// every guide is linked from SKILL.md, every relative link resolves, every parts.css section has a demo in gallery.html.
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { runInNewContext } from 'node:vm';
 import assert from 'node:assert/strict';
@@ -308,4 +309,17 @@ for (const page of ['example.html', 'gallery.html']) {
   assert.deepEqual(res, { errors: [], warnings: [] }, page + ' lint:\n' + res.errors.join('\n'));
 }
 
-console.log('artifacts skill terminal.js, chart.js, data.js, linkmap.js, lint.mjs, spec-page.mjs, spec-page.js, example.html, gallery.html: PASS');
+// ---------- docs: guides, links and the gallery stay in step with the files ----------
+const skill = read('SKILL.md'), guides = readdirSync(new URL('./guides/', import.meta.url)).filter(f => f.endsWith('.md'));
+assert.ok(guides.length, 'no guides found');
+for (const g of guides) assert.ok(skill.includes(`(guides/${g})`), `SKILL.md does not link guides/${g}`);
+for (const doc of ['SKILL.md', ...guides.map(g => 'guides/' + g)])
+  for (const [, href] of read(doc).matchAll(/\]\(([^)#\s]+)\)/g))
+    if (!/^[a-z]+:/.test(href)) assert.ok(existsSync(new URL(href, new URL('./' + doc, import.meta.url))), `${doc}: broken link ${href}`);
+// a part's demo lives in a gallery block marked data-part="<its parts.css section>"; the spec page's demo is example.html
+const sections = [...read('parts.css').matchAll(/^\/\* -{10} ([a-z ]+?)(?::| -{10})/gm)].map(m => m[1]);
+assert.ok(sections.length >= 13, 'parts.css sections not found');
+const demos = [...read('gallery.html').matchAll(/data-part="([^"]*)"/g)].flatMap(m => m[1].split(',').map(s => s.trim()));
+for (const s of sections) if (s !== 'spec page') assert.ok(demos.includes(s), `gallery.html has no demo marked data-part="${s}"`);
+
+console.log('artifacts skill terminal.js, chart.js, data.js, linkmap.js, lint.mjs, spec-page.mjs, spec-page.js, example.html, gallery.html, guides and links: PASS');

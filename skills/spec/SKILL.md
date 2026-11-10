@@ -35,9 +35,9 @@ Start the file with `# Spec: <title>`. Put the goal line under `## Goal`.
 
 A spec is **small** when it has no Trade-offs and no Security section, Blast radius lists at most 2 files, and it has at most 3 acceptance criteria. Other specs are medium or large.
 
-- Medium or large: load `artifacts` and publish the page as its "Spec pages" section says, before you ask for approval. Link it in your message.
+- Medium or large: load `artifacts` and publish the page as its `guides/spec-page.md` says, before you ask for approval. Link it in your message.
 - Small: end the approval message with: "Want a page for this spec? Reply `page`, or `approve spec` to approve it as it is." Build the page only on `page`.
-- **Edit loop.** When a notice says the page changed, and before each republish, read the live page and merge its edits ("Spec pages" section). If edits were merged, list them, republish, and ask again for `approve spec`: the spec changed, so the old approval is gone.
+- **Edit loop.** When a notice says the page changed, and before each republish, read the live page and merge its edits (same guide). If edits were merged, list them, republish, and ask again for `approve spec`: the spec changed, so the old approval is gone.
 - A page comment is a question, never an edit or an approval. Only `approve spec` typed in the terminal approves.
 
 ## Rules

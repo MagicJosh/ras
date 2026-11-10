@@ -94,7 +94,7 @@ Put rules you want in every session in `~/.claude/rules/`. Claude Code loads tho
 | `architecture` | Styles, characteristics, trade-offs, fitness functions, ADRs, deep modules |
 | `distributed-architecture` | Service size, data ownership, distributed transactions, contracts |
 | `deep-review` | Strict maintainability review of messy code. Explicit request only |
-| `artifacts` | The house look for HTML Artifact pages: parts, accuracy rules, a page lint, and the spec page that `spec` publishes |
+| `artifacts` | The house look for HTML Artifact pages: parts, a guide per kind of page, accuracy rules, a page lint, and the spec page that `spec` publishes |
 | `security-check` | Risky behavior in any lane: auth, permissions, secrets, payments, personal data, deletes |
 | `debt` | `/debt` lists every `shortcut:` comment as a ledger. User call only |
 | `handoff` | `/handoff` writes a handoff file to `.ras/handoffs/` for a fresh session or another agent. A `.gitignore` inside keeps it out of git. User call only |
