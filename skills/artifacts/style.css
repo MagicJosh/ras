@@ -6,17 +6,17 @@
 
 :root {
   color-scheme: light;
-  --bg: #f5f3ec; --panel: #fffdf8; --line: #e0dccf; --line-strong: #c9c4b4; --hover: #ece8dd;
-  --text: #23231e; --muted: #66655b; --faint: #8f8d81;
-  --clay: #b9583a; --teal: #1a8079;
-  --pill: #fffdf8f0; --shadow: #2a261833;
+  --bg: #eef1ea; --panel: #fbfcf7; --line: #d9dfd2; --line-strong: #bcc5b4; --hover: #e3e8dd;
+  --text: #1e2420; --muted: #4f5a50; --faint: #616d62;
+  --clay: #ad5236; --teal: #197972;
+  --pill: #fbfcf7f0; --shadow: #1e242033;
   /* data colors: job or machine states, and chart series. Use them for data only, never for page chrome. */
-  --st-active: #1a8079; --st-paused: #b07d12; --st-flagged: #c0392b; --st-idle: #8f8d81;
+  --st-active: #197972; --st-paused: #8e6309; --st-flagged: #c4264a; --st-idle: #616d62;
   /* series pass the dataviz palette checks (light and dark, on --panel and --bg); re-run them after any change:
-     node <dataviz>/scripts/validate_palette.js "<--s1..--s6 hexes>" --mode light --surface "#fffdf8" (then --mode dark) */
+     node <dataviz>/scripts/validate_palette.js "<--s1..--s6 hexes>" --mode light --surface "#fbfcf7" (then --mode dark) */
   --s1: #0f928a; --s2: #b9583a; --s3: #4f6fb0; --s4: #b07d12; --s5: #8a4fa8; --s6: #5d7a2e;
   /* heatmap scale, one hue, low to high (dark flips: high is brighter). Text on --q1..--q3 is --text, on --q4/--q5 --panel */
-  --q1: #cff0ec; --q2: #9ed8d2; --q3: #66bcb4; --q4: #109088; --q5: #026c66;
+  --q1: #cff0ec; --q2: #9ed8d2; --q3: #66bcb4; --q4: #0e817a; --q5: #015c57;
   /* the terminal mock stays dark in both themes: terminal colors are made for a dark background */
   --term: #272822; --term-bar: #1f201b; --term-line: #33352d; --term-fg: #f8f8f2; --term-faint: #6b6c62;
   --term-edge: #00000055; --term-dot: #3a3b34; --term-accent: #d97757;
@@ -27,24 +27,24 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #151612; --panel: #1d1e19; --line: #33352d; --line-strong: #4b4d43; --hover: #33352d;
-    --text: #e6e4da; --muted: #9a9a8e; --faint: #6b6c62;
+    --bg: #131612; --panel: #1b1f1a; --line: #2f352e; --line-strong: #485046; --hover: #2f352e;
+    --text: #e4e8df; --muted: #9da69b; --faint: #818b80;
     --clay: #d97757; --teal: #4ecdc4;
-    --pill: #23241ef2; --shadow: #000;
-    --st-active: #4ecdc4; --st-paused: #e0b44c; --st-flagged: #ef6f5e; --st-idle: #6b6c62;
+    --pill: #212620f2; --shadow: #000;
+    --st-active: #4ecdc4; --st-paused: #e0b44c; --st-flagged: #f0647c; --st-idle: #818b80;
     --s1: #0fa69e; --s2: #d37252; --s3: #708fd2; --s4: #b48a10; --s5: #ad78c8; --s6: #7b9f38;
-    --q1: #11403d; --q2: #0f5c57; --q3: #027972; --q4: #22aba1; --q5: #45d3c8;
+    --q1: #11403d; --q2: #0f5c57; --q3: #02716b; --q4: #22aba1; --q5: #45d3c8;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #151612; --panel: #1d1e19; --line: #33352d; --line-strong: #4b4d43; --hover: #33352d;
-  --text: #e6e4da; --muted: #9a9a8e; --faint: #6b6c62;
+  --bg: #131612; --panel: #1b1f1a; --line: #2f352e; --line-strong: #485046; --hover: #2f352e;
+  --text: #e4e8df; --muted: #9da69b; --faint: #818b80;
   --clay: #d97757; --teal: #4ecdc4;
-  --pill: #23241ef2; --shadow: #000;
-  --st-active: #4ecdc4; --st-paused: #e0b44c; --st-flagged: #ef6f5e; --st-idle: #6b6c62;
+  --pill: #212620f2; --shadow: #000;
+  --st-active: #4ecdc4; --st-paused: #e0b44c; --st-flagged: #f0647c; --st-idle: #818b80;
   --s1: #0fa69e; --s2: #d37252; --s3: #708fd2; --s4: #b48a10; --s5: #ad78c8; --s6: #7b9f38;
-  --q1: #11403d; --q2: #0f5c57; --q3: #027972; --q4: #22aba1; --q5: #45d3c8;
+  --q1: #11403d; --q2: #0f5c57; --q3: #02716b; --q4: #22aba1; --q5: #45d3c8;
 }
 
 * { box-sizing: border-box; }
