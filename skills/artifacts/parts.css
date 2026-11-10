@@ -26,6 +26,7 @@
 .cm > i { display: block; height: 100%; max-width: 100%; border-radius: 3px; background: var(--tone, var(--st-active)); }
 .cm > b { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--text); }
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.dtbox, .heat, .cells { position: relative; }  /* a .vh inside a scroll box scrolls with it, so it cannot widen the page */
 .na { color: var(--muted); font-style: italic; }
 
 /* ---------- stage strip: a process in a few stages, left to right, stacked on phones ----------
