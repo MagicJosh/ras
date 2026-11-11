@@ -16,7 +16,7 @@ graders:
     max: 0
   - name: names-gate
     type: regex
-    pattern: '(ras:|/)spec\b'
+    pattern: '(ras:|/|`)spec\b'
     arm: with-only
   - name: shows-prompt
     type: regex
