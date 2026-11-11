@@ -82,7 +82,7 @@ At each session start, resume and compaction, the hook gives the agent a 5-line 
 
 Put rules you want in every session in `~/.claude/rules/`. Claude Code loads those files in every project, and they survive `/compact`. Do not rely on `~/AGENTS.md`: Claude Code reads an `AGENTS.md` only when no `CLAUDE.md` is in the working directory or above it, so most repositories hide it. Type `/rules` to install the lazy senior dev coding rules as `~/.claude/rules/lazy.md`. Keep always-on rules short: a study of repository context files found no general gain in task success and over 20% more cost ([Gloaguen et al., 2026](https://arxiv.org/abs/2602.11988)).
 
-## The 14 skills
+## The 15 skills
 
 | Skill | Job |
 |---|---|
@@ -95,6 +95,7 @@ Put rules you want in every session in `~/.claude/rules/`. Claude Code loads tho
 | `distributed-architecture` | Service size, data ownership, distributed transactions, contracts |
 | `deep-review` | Strict maintainability review of messy code. Explicit request only |
 | `artifacts` | The house look for HTML Artifact pages: parts, accuracy rules, a page lint, and the spec page that `spec` publishes |
+| `prompt` | `/prompt <rough ask>` turns it into a clear prompt: looks in the repo first, asks at most 3 questions, lists its assumptions, then runs it or hands you a copy block |
 | `security-check` | Risky behavior in any lane: auth, permissions, secrets, payments, personal data, deletes |
 | `debt` | `/debt` lists every `shortcut:` comment as a ledger. User call only |
 | `handoff` | `/handoff` writes a handoff file to `.ras/handoffs/` for a fresh session or another agent. A `.gitignore` inside keeps it out of git. User call only |
@@ -126,7 +127,7 @@ claude plugin validate .
 
 ## Evals
 
-`evals/` holds a suite for `claude plugin eval`: 21 cases, each a prompt in a small test repo. It checks that each skill loads on the right request and does its job. It also runs each case without the plugin, so the Δ column shows what the plugin adds.
+`evals/` holds a suite for `claude plugin eval`: 28 cases, each a prompt in a small test repo. It checks that each skill loads on the right request and does its job. It also runs each case without the plugin, so the Δ column shows what the plugin adds.
 
 ```
 claude plugin eval . --scaffold --trust-plugin --threshold 0.66 -j 4 --no-publish --max-cost-usd 60 --allow-tools Write Edit Bash
@@ -136,9 +137,10 @@ claude plugin eval . --scaffold --trust-plugin --threshold 0.66 -j 4 --no-publis
 - A Bash grant needs the Claude Code sandbox: `bubblewrap` and `socat` on Linux and WSL2. Native Windows has no sandbox, so use WSL2.
 - `--no-publish` keeps the report on your machine. Without it, a claude.ai account uploads the report, with the prompts and the grader results, as a private artifact.
 - `--scaffold` runs `evals/fixture.sh` to build each test repo. Put `--allow-tools` last, because it takes a list.
-- A full run is 126 agent runs. On a subscription, this uses your plan limits. To try one case: `claude plugin eval . --case spec-first --runs 1 --ablation none --scaffold --trust-plugin --no-publish --allow-tools Write Edit`.
-- The graders are free checks: regex, tool calls and files. They show if a skill loads and does its job, not if its advice is good.
-- Read Δ only for cases with a result check. `architecture`, `distributed-architecture`, `deep-review` and `which` check only that the skill runs, so their Δ is always 1.00. `module-design` checks only that a reference file is read. `spar-rounds`, `spar-adr`, `spar-no-adr`, `debt-ledger` and `handoff-file` start with a slash command that only the plugin arm has, so read their score with the plugin, not their Δ.
+- A full run is 168 agent runs. On a subscription, this uses your plan limits. To try one case: `claude plugin eval . --case spec-first --runs 1 --ablation none --scaffold --trust-plugin --no-publish --allow-tools Write Edit`.
+- Most graders are free checks: regex, tool calls and files. They show if a skill loads and does its job. Five cases also have an `llm` grader, which judges the reply against a rubric and costs three short judge calls per run: `architecture`, `distributed-architecture`, `deep-review`, `which` and `prompt-waits`. Pin the judge with `--judge-model`.
+- Read Δ only for cases with a result check. `module-design` checks only that a reference file is read. `spar-rounds`, `spar-adr`, `spar-no-adr`, `debt-ledger`, `handoff-file` and the seven `prompt-*` cases start with a slash command that only the plugin arm has, so read their score with the plugin, not their Δ.
+- To compare models, run the suite once per model with `--model <model>`. A skill whose Δ falls to zero on a newer model is one that model no longer needs. `SOURCES.md` lists the outside facts the skills rest on and when each was last checked.
 - Results go to `evals/results/`, which git ignores.
 
 ## Credits

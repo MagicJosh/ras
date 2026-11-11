@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- New `prompt` skill: `/prompt <rough ask>` turns a rough ask into a clear prompt for Claude or another LLM. It reads the repo first, settles each gap by delegating it, asking (one round, at most 3 questions), assuming it or leaving a placeholder, and shows the assumptions, what it noticed outside the task, the prompt and a suggested effort level. A small ask with nothing guessed and nothing destructive starts in the same turn. It names a matching skill or the spec gate at the top of the prompt, and reads standing answers from `~/.claude/prompt-defaults.md`. Reference files: `guidelines.md`, `tasks.md`, `examples.md`.
+- New `SOURCES.md`: the outside facts the skills rest on, where each lives, its source and the date it was last checked. Rows marked "not recorded" still need a source.
+- Evals: seven `prompt-*` cases. `architecture`, `distributed-architecture`, `deep-review` and `which` gain an `llm` rubric grader, so they now check the reply and not only that the skill ran. `deep-review` also checks for the `calc.py` finding and the verdict. 28 cases.
+- `which` and the README list 15 skills. The word cap of `which` is now 340.
+
 ## 6.2.0
 
 - New `artifacts` skill: the house look for HTML Artifact pages, moved into ras so it works on every machine. Tokens and type (`style.css`), parts (`parts.css`, `chart.js`, `data.js`, `linkmap.js`, `terminal.js`), accuracy and data rules, and a page lint (`lint.mjs`). `check.mjs` tests the scripts and the lint, and CI runs it. `gallery.html` shows every data part with made-up values.

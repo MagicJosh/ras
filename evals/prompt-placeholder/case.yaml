@@ -1,0 +1,27 @@
+schema_version: "1.1"
+name: prompt-placeholder
+description: A writing prompt for another chat leaves placeholders for facts only the user has and names them in a fill-in line.
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: '/prompt write a message to my landlord, the heating broke again and i want a repair date. its for another claude chat, leave placeholders for what you dont know'
+  max_turns: 20
+  allowed_tools: [Read, Glob, Grep, Skill, AskUserQuestion]
+graders:
+  - name: fill-in
+    type: regex
+    pattern: 'Fill in before sending'
+    arm: with-only
+  - name: has-placeholder
+    type: regex
+    pattern: '\[[a-z][a-z ]*\]'
+    flags: i
+  - name: ready-to-copy
+    type: regex
+    pattern: 'Ready to copy'
+    arm: with-only
+  - name: no-questions
+    type: tool_used
+    tool: AskUserQuestion
+    min: 0
+    max: 0
