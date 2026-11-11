@@ -1,6 +1,6 @@
 schema_version: "1.1"
 name: spec-first
-description: Running /spec loads spec, which writes specs/current.md without questions on a clear request, offers a page for the small spec, and stops before it edits app.py.
+description: Running /spec loads spec, which writes specs/current.md without questions on a clear request, shows a brief taken from that file, offers a page for the small spec, and stops before it edits app.py.
 context:
   scaffold_script: scaffold.sh
 execution:
@@ -30,4 +30,19 @@ graders:
     type: regex
     pattern: 'want a page'
     flags: i
+    arm: with-only
+  - name: shows-brief
+    type: regex
+    pattern: '\*\*Approving:?\*\*[\s\S]*\*\*Done when:?\*\*'
+    arm: with-only
+  - name: brief-from-file
+    type: llm
+    focus: trace
+    criteria: >-
+      The trace holds a Write call that creates specs/current.md, and a final
+      reply with a brief (Approving, Decisions, Added, Assumed, Changes, Stays,
+      Done when). PASS if the brief names the goal and every choice, file and
+      criterion in the brief also stands in the written file. FAIL if the brief
+      states a choice, a file or a criterion that the written file lacks, or
+      if the reply has no brief.
     arm: with-only

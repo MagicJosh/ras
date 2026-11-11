@@ -32,7 +32,7 @@ claude plugin update ras@magicjosh
 In the gate lane:
 
 1. The agent loads `spec`. It asks only what is still unknown: the goal, who uses it, must-have versus nice-to-have, what is out of scope, constraints, and what done looks like. It asks one round in plain text: numbered questions, with a recommended answer for each. Reply `yes` to accept all, or answer by number. Type `/spar` for a deeper round.
-2. When every question has an answer, it writes `specs/current.md`: Goal, Decisions, Proposed additions (details you did not ask for), criteria, non-goals, blast radius. It asks for approval once.
+2. When every question has an answer, it writes `specs/current.md`: Goal, Decisions, Proposed additions (details you did not ask for), criteria, non-goals, blast radius. It shows a short brief of the file and asks for approval once.
    For a medium or large spec it also publishes a page built from the spec (`artifacts` skill), and for a small one it asks whether you want one. You can edit the page's text in place and comment on it. The agent merges your edits into `specs/current.md` and asks for approval again. The page never approves: only the reply typed in the terminal does. The page link lives in `specs/current.url`.
 3. You read the spec and reply with exactly `approve spec`. Reply `ask me` first to get questions on a spec that guessed.
 4. The agent loads `build`, implements the spec, then loads `finalize`: defects, cuts, fresh checks, report. `finalize` archives the spec to `specs/<date>-<slug>.md`, which ends the approval. It keeps the 5 newest archived specs.
@@ -138,7 +138,7 @@ claude plugin eval . --scaffold --trust-plugin --threshold 0.66 -j 4 --no-publis
 - `--no-publish` keeps the report on your machine. Without it, a claude.ai account uploads the report, with the prompts and the grader results, as a private artifact.
 - `--scaffold` runs `evals/fixture.sh` to build each test repo. Put `--allow-tools` last, because it takes a list.
 - A full run is 168 agent runs. On a subscription, this uses your plan limits. To try one case: `claude plugin eval . --case spec-first --runs 1 --ablation none --scaffold --trust-plugin --no-publish --allow-tools Write Edit`.
-- Most graders are free checks: regex, tool calls and files. They show if a skill loads and does its job. Five cases also have an `llm` grader, which judges the reply against a rubric and costs three short judge calls per run: `architecture`, `distributed-architecture`, `deep-review`, `which` and `prompt-waits`. Pin the judge with `--judge-model`.
+- Most graders are free checks: regex, tool calls and files. They show if a skill loads and does its job. Six cases also have an `llm` grader, which judges the reply against a rubric and costs three short judge calls per run: `architecture`, `distributed-architecture`, `deep-review`, `which`, `prompt-waits` and `spec-first`. Pin the judge with `--judge-model`.
 - Read Δ only for cases with a result check. `module-design` checks only that a reference file is read. `spar-rounds`, `spar-adr`, `spar-no-adr`, `debt-ledger`, `handoff-file` and the seven `prompt-*` cases start with a slash command that only the plugin arm has, so read their score with the plugin, not their Δ.
 - To compare models, run the suite once per model with `--model <model>`. A skill whose Δ falls to zero on a newer model is one that model no longer needs. `SOURCES.md` lists the outside facts the skills rest on and when each was last checked.
 - Results go to `evals/results/`, which git ignores.

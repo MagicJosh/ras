@@ -6,6 +6,7 @@
 - New `SOURCES.md`: the outside facts the skills rest on, where each lives, its source and the date it was last checked. Rows marked "not recorded" still need a source.
 - Evals: seven `prompt-*` cases. `architecture`, `distributed-architecture`, `deep-review` and `which` gain an `llm` rubric grader, so they now check the reply and not only that the skill ran. `deep-review` also checks for the `calc.py` finding and the verdict. 28 cases.
 - `which` and the README list 15 skills. The word cap of `which` is now 340.
+- `spec`: the approval message is now a brief the user decides from, built from the file: Approving, Decisions, Added, Assumed, Changes, Stays, Done when. Before, it copied only the Decisions lines. The `spec-first` eval checks that the brief is shown and that it states nothing the file lacks. The word cap of `spec` is now 850.
 
 ## 6.2.0
 
