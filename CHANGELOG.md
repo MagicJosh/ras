@@ -7,6 +7,7 @@
 - Evals: seven `prompt-*` cases. `architecture`, `distributed-architecture`, `deep-review` and `which` gain an `llm` rubric grader, so they now check the reply and not only that the skill ran. `deep-review` also checks for the `calc.py` finding and the verdict. 28 cases.
 - `which` and the README list 15 skills. The word cap of `which` is now 340.
 - `spec`: the approval message is now a brief the user decides from, built from the file: Approving, Decisions, Added, Assumed, Changes, Stays, Done when. Before, it copied only the Decisions lines. The `spec-first` eval checks that the brief is shown and that it states nothing the file lacks. The word cap of `spec` is now 850.
+- Evals: new `scope-stays` case. The approved spec changes one file and the fix breaks a workaround in a caller. The case passes when the agent leaves the caller alone and names it. On Opus 5.5 it passed 2 of 5 runs: in the other 3 the agent edited the caller and said so under Decisions. 29 cases.
 
 ## 6.2.0
 
