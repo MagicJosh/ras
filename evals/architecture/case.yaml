@@ -12,3 +12,12 @@ graders:
     type: tool_used
     tool: Skill
     input_match: '"skill"\s*:\s*"ras:architecture"'
+  - name: weighs-trade-offs
+    type: llm
+    criteria: >-
+      PASS if the reply names the quality characteristics that drive the choice
+      and limits or ranks them, compares both styles against those
+      characteristics, says what the recommended style costs or gives up, and
+      ends with one recommendation. FAIL if it recommends a style without saying
+      what is given up, or lists general pros and cons that are tied to no named
+      characteristic.

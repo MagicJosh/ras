@@ -11,3 +11,9 @@ graders:
   - name: names-skill
     type: regex
     pattern: distributed-architecture
+  - name: short-answer
+    type: llm
+    criteria: >-
+      PASS if the reply names one or two skills, gives one line of reason for
+      each, and then stops. FAIL if it names three or more skills, or starts on
+      the task itself.

@@ -12,3 +12,13 @@ graders:
     type: tool_used
     tool: Skill
     input_match: '"skill"\s*:\s*"ras:distributed-architecture"'
+  - name: owns-data-and-failure
+    type: llm
+    criteria: >-
+      PASS if the reply questions or justifies whether the split is needed at
+      all, gives each piece of data one owning service, says how a service reads
+      data it does not own, and for an operation that spans both services either
+      keeps it inside one transaction boundary or describes a saga with a
+      compensation for a step that fails late. FAIL if it recommends a shared
+      database or a distributed transaction without naming the trade-off, or
+      never says what happens when an operation fails halfway.
