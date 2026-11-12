@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { lintText, lintFile } from './lint.mjs';
 import { cksum, specData, buildPage, pageData, merge } from './spec-page.mjs';
 
-const read = f => readFileSync(new URL('./' + f, import.meta.url), 'utf8');
+const read = f => readFileSync(new URL('./' + f, import.meta.url), 'utf8').replace(/\r\n/g, '\n');  // a Windows checkout has CRLF; the checks below match "\n"
 const load = (f, name) => { const ctx = {}; runInNewContext(read(f) + `\nthis.${name} = ${name};`, ctx); return ctx[name]; };
 const plain = rows => JSON.parse(JSON.stringify(rows));
 
