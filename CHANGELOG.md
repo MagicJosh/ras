@@ -6,6 +6,10 @@
 - New `SOURCES.md`: the outside facts the skills rest on, where each lives, its source and the date it was last checked. Rows marked "not recorded" still need a source.
 - Evals: seven `prompt-*` cases. `architecture`, `distributed-architecture`, `deep-review` and `which` gain an `llm` rubric grader, so they now check the reply and not only that the skill ran. `deep-review` also checks for the `calc.py` finding and the verdict. 28 cases.
 - `which` and the README list 15 skills. The word cap of `which` is now 340.
+- `spec`: the approval message is now a brief the user decides from, built from the file: Approving, Decisions, Added, Assumed, Changes, Stays, Done when. Before, it copied only the Decisions lines. The `spec-first` eval checks that the brief is shown and that it states nothing the file lacks. The word cap of `spec` is now 850.
+- `build`: a file the change breaks that the spec does not change stays as it is. The agent gives it its own Blast radius line and asks for `approve spec` again. An approved spec unlocks every risky path, so the files the spec names are the only limit on what an approval covers. The word cap of `build` is now 640.
+- `finalize`: a file named only under Callers does not count as listed in the Blast radius.
+- Evals: new `scope-stays` case. The approved spec changes one file and the fix breaks a workaround in a caller. The case passes when the agent leaves the caller alone, lists it in the spec and asks for approval again. On Opus 5.5 without a shell, the agent left the caller alone in 2 of 5 runs before the `build` rule and in 5 of 5 after it. 29 cases.
 
 ## 6.2.0
 

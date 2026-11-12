@@ -28,6 +28,7 @@ Read the request, then read the files it affects. Follow the data from input to 
 - Mark a deliberate shortcut with a comment like `shortcut: <limit>, upgrade when <trigger>`.
 - Comment only what the code cannot say: a contract, a unit, an invariant, a side effect, a limit. No change history, bug story or ticket number in code. Those go in the commit message.
 - Do the criteria in the spec. Work outside the spec goes into a new spec.
+- A file your change breaks that the spec does not change, a named caller included, stays as it is. Give it its own Blast radius line and ask for `approve spec` again.
 
 ## Design for real conditions
 
