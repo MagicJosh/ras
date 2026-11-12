@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 6.3.0
 
 - New `prompt` skill: `/prompt <rough ask>` turns a rough ask into a clear prompt for Claude or another LLM. It reads the repo first, settles each gap by delegating it, asking (one round, at most 3 questions), assuming it or leaving a placeholder, and shows the assumptions, what it noticed outside the task, the prompt and a suggested effort level. A small ask with nothing guessed and nothing destructive starts in the same turn. It names a matching skill or the spec gate at the top of the prompt, and reads standing answers from `~/.claude/prompt-defaults.md`. Reference files: `guidelines.md`, `tasks.md`, `examples.md`.
 - New `SOURCES.md`: the outside facts the skills rest on, where each lives, its source and the date it was last checked. Rows marked "not recorded" still need a source.
@@ -10,6 +10,7 @@
 - `build`: a file the change breaks that the spec does not change stays as it is. The agent gives it its own Blast radius line and asks for `approve spec` again. An approved spec unlocks every risky path, so the files the spec names are the only limit on what an approval covers. The word cap of `build` is now 640.
 - `finalize`: a file named only under Callers does not count as listed in the Blast radius.
 - Evals: new `scope-stays` case. The approved spec changes one file and the fix breaks a workaround in a caller. The case passes when the agent leaves the caller alone, lists it in the spec and asks for approval again. On Opus 5.5 without a shell, the agent left the caller alone in 2 of 5 runs before the `build` rule and in 5 of 5 after it. 29 cases.
+- `artifacts`: `check.mjs` now passes on a Windows checkout. Its files arrive with CRLF line endings there, and one check matched a literal `\n`.
 
 ## 6.2.0
 
