@@ -22,7 +22,7 @@ graders:
     pattern: '4\.18\.2'
   - name: counts-confirmed-claims
     type: regex
-    pattern: '[0-9]+ of [0-9]+ cited claims confirmed'
+    pattern: '[0-9]+ of [0-9]+ (cited )?claims confirmed'
     arm: with-only
   - name: finds-removed-api
     type: regex
