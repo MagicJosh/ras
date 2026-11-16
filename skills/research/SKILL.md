@@ -1,6 +1,6 @@
 ---
 name: research
-description: Use when a question needs sources outside this conversation, such as choosing a library or tool, breaking changes between versions, or how an external system or API behaves. Not when the repo alone can answer. Not for the cause of a failure, which is the job of diagnose.
+description: Use when the user asks to research something, or when an answer depends on facts about a library, a version, an API or a tool that must be checked against current sources and not recalled from memory, such as a library choice or the breaking changes between versions. Not when the repo alone can answer. Not for the cause of a failure, which is the job of diagnose.
 ---
 
 # Research
