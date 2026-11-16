@@ -82,7 +82,7 @@ At each session start, resume and compaction, the hook gives the agent a 5-line 
 
 Put rules you want in every session in `~/.claude/rules/`. Claude Code loads those files in every project, and they survive `/compact`. Do not rely on `~/AGENTS.md`: Claude Code reads an `AGENTS.md` only when no `CLAUDE.md` is in the working directory or above it, so most repositories hide it. Type `/rules` to install the lazy senior dev coding rules as `~/.claude/rules/lazy.md`. Keep always-on rules short: a study of repository context files found no general gain in task success and over 20% more cost ([Gloaguen et al., 2026](https://arxiv.org/abs/2602.11988)).
 
-## The 15 skills
+## The 16 skills
 
 | Skill | Job |
 |---|---|
@@ -96,6 +96,7 @@ Put rules you want in every session in `~/.claude/rules/`. Claude Code loads tho
 | `deep-review` | Strict maintainability review of messy code. Explicit request only |
 | `artifacts` | The house look for HTML Artifact pages: parts, accuracy rules, a page lint, and the spec page that `spec` publishes |
 | `prompt` | `/prompt <rough ask>` turns it into a clear prompt: looks in the repo first, asks at most 3 questions, lists its assumptions, then runs it or hands you a copy block |
+| `research` | A question that needs outside sources: reads the installed versions first, checks each cited claim on its page, and saves an answer with an evidence table to `specs/research/`. Hands heavy reading to the read-only `researcher` agent |
 | `security-check` | Risky behavior in any lane: auth, permissions, secrets, payments, personal data, deletes |
 | `debt` | `/debt` lists every `shortcut:` comment as a ledger. User call only |
 | `handoff` | `/handoff` writes a handoff file to `.ras/handoffs/` for a fresh session or another agent. A `.gitignore` inside keeps it out of git. User call only |
@@ -127,7 +128,7 @@ claude plugin validate .
 
 ## Evals
 
-`evals/` holds a suite for `claude plugin eval`: 29 cases, each a prompt in a small test repo. It checks that each skill loads on the right request and does its job. It also runs each case without the plugin, so the Δ column shows what the plugin adds.
+`evals/` holds a suite for `claude plugin eval`: 30 cases, each a prompt in a small test repo. It checks that each skill loads on the right request and does its job. It also runs each case without the plugin, so the Δ column shows what the plugin adds.
 
 ```
 claude plugin eval . --scaffold --trust-plugin --threshold 0.66 -j 4 --no-publish --max-cost-usd 60 --allow-tools Write Edit Bash

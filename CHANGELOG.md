@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- New `research` skill, for a question that needs outside sources: a library or tool choice, breaking changes between versions, or how an external API behaves. It reads the installed versions first, picks a size (no agent, one researcher, or at most 3 for independent options), checks each claim the answer rests on against its page, and saves the result to `specs/research/<date>-<slug>.md`. The result has a fixed form (`references/template.md`): the answer, an evidence table with a status per claim (`verified`, `search summary`, `inference`, `not verified`), conflicts, gaps and one check the reader can run.
+- New `researcher` agent in `agents/`, the first agent in ras. It is read-only by its tool list: Read, Grep, Glob, WebSearch and WebFetch.
+- `which` and the README list 16 skills. The word cap of `which` is now 355. Evals: new `research` case. 30 cases.
+
 ## 6.3.0
 
 - New `prompt` skill: `/prompt <rough ask>` turns a rough ask into a clear prompt for Claude or another LLM. It reads the repo first, settles each gap by delegating it, asking (one round, at most 3 questions), assuming it or leaving a placeholder, and shows the assumptions, what it noticed outside the task, the prompt and a suggested effort level. A small ask with nothing guessed and nothing destructive starts in the same turn. It names a matching skill or the spec gate at the top of the prompt, and reads standing answers from `~/.claude/prompt-defaults.md`. Reference files: `guidelines.md`, `tasks.md`, `examples.md`.
