@@ -16,7 +16,15 @@ Write the contract before you touch the files. Ordinary changes do not need one.
    - End the round with: "Reply `yes` to accept all, or answer by number. Type `/spar` for a deeper round." Then stop.
 3. Write the spec only after every question is answered. Put what the answers left open under Assumptions. Never ask for approval while a question is open.
 4. Write `specs/current.md` in the project root with these sections.
-5. Writing the spec is your last action, apart from its page (below). Copy the Decisions lines into your message, then ask once, and stop: reply with exactly `approve spec`.
+5. Writing the spec is your last action, apart from its page (below). Then show the **brief**, which the user decides from: the file retold in plain words, every line taken from the file, a missing section skipped.
+   - **Approving**: the Goal.
+   - **Decisions**: each choice and what it rejects. Flag what is hard to undo.
+   - **Added**: each Proposed addition.
+   - **Assumed**: each Assumption.
+   - **Changes**: the Blast radius files. **Stays**: the Non-goals.
+   - **Done when**: each criterion in a few words.
+
+   Ask once, and stop: reply with exactly `approve spec`.
 
 ## Sections
 

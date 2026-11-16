@@ -17,6 +17,7 @@ disable-model-invocation: true
 | `distributed-architecture` | Split a system: service size, data ownership, transactions | "Should billing become its own service?" |
 | `deep-review` | Strict maintainability review of existing messy code | "Run a deep review of this module" |
 | `artifacts` | Build or check an HTML Artifact page | "Make this plan a page" |
+| `prompt` | Turn a rough ask into a clear prompt for Claude or another LLM | "/prompt fix the export" |
 | `security-check` | A change touches auth, secrets, permissions, deletes or production | "Add an admin delete endpoint" |
 | `debt` | List the marked shortcuts. User call only | "/debt" |
 | `handoff` | Pass the work to a fresh session or another agent. User call only | "/handoff" |

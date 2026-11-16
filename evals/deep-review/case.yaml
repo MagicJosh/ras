@@ -12,3 +12,17 @@ graders:
     type: tool_used
     tool: Skill
     input_match: '"skill"\s*:\s*"ras:deep-review"'
+  - name: finds-calc
+    type: regex
+    pattern: 'calc\.py'
+  - name: verdict
+    type: regex
+    pattern: 'NEEDS WORK'
+    arm: with-only
+  - name: defect-first
+    type: llm
+    criteria: >-
+      PASS if the reply reports the wrong result of is_even in calc.py as a
+      finding with its file and line, a severity and a concrete fix, and ends
+      with exactly one verdict. FAIL if it misses that defect, gives a finding
+      without a location, or gives no verdict.
