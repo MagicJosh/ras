@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 6.4.0
 
 - New `research` skill, for a question that needs outside sources: a library or tool choice, breaking changes between versions, or how an external API behaves. It reads the installed versions first, picks a size (no agent, one researcher, or at most 3 for independent options), checks each claim the answer rests on against its page, and saves the result to `specs/research/<date>-<slug>.md`. The result has a fixed form (`references/template.md`): the answer, an evidence table with a status per claim (`verified`, `search summary`, `inference`, `not verified`), conflicts, gaps and one check the reader can run.
 - New `researcher` agent in `agents/`, the first agent in ras. It is read-only by its tool list: Read, Grep, Glob, WebSearch and WebFetch.
