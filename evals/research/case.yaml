@@ -1,0 +1,33 @@
+schema_version: "1.1"
+name: research
+description: A breaking-change question loads research, which reads the pinned version, saves a result under specs/research/ and reports how many cited claims it confirmed.
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: 'We want to move this app from its current Express version to Express 5. Research what breaks in this repo. Do not change the code.'
+  max_turns: 40
+  allowed_tools: [Read, Glob, Grep, Skill, Write, Agent, WebSearch, WebFetch]
+graders:
+  - name: skill-fired
+    type: tool_used
+    tool: Skill
+    input_match: '"skill"\s*:\s*"ras:research"'
+  - name: result-saved
+    type: tool_used
+    tool: Write
+    input_match: 'specs[/\\]+research[/\\]+20[0-9]{2}-'
+    arm: with-only
+  - name: names-pinned-version
+    type: regex
+    pattern: '4\.18\.2'
+  - name: counts-confirmed-claims
+    type: regex
+    pattern: '[0-9]+ of [0-9]+ (cited )?claims confirmed'
+    arm: with-only
+  - name: finds-removed-api
+    type: regex
+    pattern: 'app\.del|req\.param'
+  - name: server-unchanged
+    type: regex
+    target: { source: file, path: server.js }
+    pattern: 'app\.del\('
