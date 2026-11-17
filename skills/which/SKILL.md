@@ -19,6 +19,7 @@ disable-model-invocation: true
 | `artifacts` | Build or check an HTML Artifact page | "Make this plan a page" |
 | `prompt` | Turn a rough ask into a clear prompt for Claude or another LLM | "/prompt fix the export" |
 | `research` | A question needs outside sources | "What breaks in Express 5?" |
+| `scope-review` | Check a finished change against its spec. User call only | "/scope-review" |
 | `security-check` | A change touches auth, secrets, permissions, deletes or production | "Add an admin delete endpoint" |
 | `debt` | List the marked shortcuts. User call only | "/debt" |
 | `handoff` | Pass the work to a fresh session or another agent. User call only | "/handoff" |
