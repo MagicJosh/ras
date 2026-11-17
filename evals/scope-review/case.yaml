@@ -1,6 +1,6 @@
 schema_version: "1.1"
 name: scope-review
-description: /scope-review hands the spec's scope and the diff to the scope-reviewer agent. The report names the edit to app.py as out of scope, and nothing is reverted.
+description: /scope-review starts the scope-reviewer agent, which runs the review script itself. The report names the edit to app.py as out of scope, and nothing is reverted.
 context:
   scaffold_script: scaffold.sh
 execution:
@@ -14,11 +14,10 @@ graders:
     input_match: 'ras:scope-reviewer'
     arm: with-only
   - name: names-app-out-of-scope
-    type: llm
-    criteria: >-
-      PASS if the reply reports the change to app.py (a new --quiet option) as out of scope,
-      and does not report the fix in calc.py as out of scope. FAIL otherwise, or if the reply
-      holds no report.
+    # Exactly one out-of-scope hunk, and it is app.py, so calc.py is not reported. A regex and not
+    # an llm judge: the judge failed 3 of 9 runs, and the two failed replies that were read held this exact report.
+    type: regex
+    pattern: 'Result: 1 hunks? out of scope[\s\S]*## Out of scope\s+1\. `?app\.py'
   - name: report-saved
     type: tool_used
     tool: Write

@@ -97,7 +97,7 @@ Put rules you want in every session in `~/.claude/rules/`. Claude Code loads tho
 | `artifacts` | The house look for HTML Artifact pages: parts, accuracy rules, a page lint, and the spec page that `spec` publishes |
 | `prompt` | `/prompt <rough ask>` turns it into a clear prompt: looks in the repo first, asks at most 3 questions, lists its assumptions, then runs it or hands you a copy block |
 | `research` | A question that needs outside sources: reads the installed versions first, checks each cited claim on its page, and saves an answer with an evidence table to `specs/research/`. Hands heavy reading to the read-only `researcher` agent |
-| `scope-review` | `/scope-review` checks a finished change against its spec. A script copies the scope from the spec and writes the diff, and the read-only `scope-reviewer` agent, which saw none of the work, sorts every hunk as in scope, supporting, out of scope or unclear. You decide what happens to each finding. User call only |
+| `scope-review` | `/scope-review` checks a finished change against its spec. The `scope-reviewer` agent, which saw none of the work, runs a script that copies the scope from the spec and prints the diff, and sorts every hunk as in scope, supporting, out of scope or unclear. You decide what happens to each finding. User call only |
 | `security-check` | Risky behavior in any lane: auth, permissions, secrets, payments, personal data, deletes |
 | `debt` | `/debt` lists every `shortcut:` comment as a ledger. User call only |
 | `handoff` | `/handoff` writes a handoff file to `.ras/handoffs/` for a fresh session or another agent. A `.gitignore` inside keeps it out of git. User call only |

@@ -70,6 +70,19 @@ check "review file names the base" yes "$(has "$md" "($(git rev-parse --short HE
 check "the spec itself is unchanged" yes "$(has specs/current.md '# Spec: Fix is_even')"
 check "the names miss the finalize cleanup" 0 "$(ls specs/2*.md 2>/dev/null | wc -l | tr -d ' ')"
 
+# --print writes nothing and puts the scope, then the change, on stdout.
+rm -f specs/review-*
+out=$(sh "$script" --print); check "print: exit 0" 0 $?
+check "print: no review files left" 0 "$(ls specs | grep -c '^review-')"
+check "print: last line is the end marker" '== end of scope review ==' "$(printf '%s\n' "$out" | tail -n 1)"
+has_out() { printf '%s\n' "$out" | grep -qF -- "$1" && echo yes || echo no; }
+check "print: holds the goal" yes "$(has_out 'is_even returns True for even numbers.')"
+check "print: holds the tracked edit" yes "$(has_out '+    return n % 2 == 0')"
+check "print: holds the untracked file" yes "$(has_out '+assert True')"
+check "print: names the report file" yes "$(has_out "Report file: \`specs/review-$(date +%Y-%m-%d)-fix-is-even.report.md\`.")"
+check "print: the change comes after the scope" yes "$(printf '%s\n' "$out" | sed -n '/^== change ==$/,$p' | grep -qF '+assert True' && echo yes || echo no)"
+git -c user.name=t -c user.email=t@example.com stash -q -u; sh "$script" --print >/dev/null 2>&1; check "print: empty change: exit 3" 3 $?; git stash pop -q
+
 # After finalize archived the spec, the newest archived spec is used.
 mv specs/current.md specs/2026-01-02-fix-is-even.md; rm -f specs/review-*
 out=$(sh "$script"); check "archived spec: exit 0" 0 $?
@@ -80,6 +93,15 @@ first=$(git rev-parse HEAD); commit work; rm -f specs/review-*
 sh "$script" >/dev/null 2>&1; check "committed work, no base: exit 3" 3 $?
 out=$(sh "$script" "$first"); check "committed work with a base: exit 0" 0 $?
 check "diff against the base holds the edit" yes "$(has "$(printf '%s\n' "$out" | sed -n 2p)" '+    return n % 2 == 0')"
+
+# A read-only specs/ sends both files to the temp folder. Skipped where chmod does not restrict (Windows, root).
+rm -f specs/review-*; chmod 555 specs
+if ! ( : > specs/.w ) 2>/dev/null; then
+  mkdir -p "$tmp/t"
+  out=$(TMPDIR=$tmp/t sh "$script" "$first"); check "read-only specs: exit 0" 0 $?
+  check "read-only specs: files go to the temp folder" yes "$([ -s "$tmp/t/$(basename "$(printf '%s\n' "$out" | sed -n 2p)")" ] && echo yes || echo no)"
+fi
+chmod 755 specs; rm -f specs/.w
 
 printf '%s passed, %s failed\n' "$pass" "$fail"
 [ "$fail" = 0 ]
