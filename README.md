@@ -34,14 +34,16 @@ In the gate lane:
 1. The agent loads `spec`. It asks only what is still unknown: the goal, who uses it, must-have versus nice-to-have, what is out of scope, constraints, and what done looks like. It asks one round in plain text: numbered questions, with a recommended answer for each. Reply `yes` to accept all, or answer by number. Type `/spar` for a deeper round.
 2. When every question has an answer, it writes `specs/current.md`: Goal, Decisions, Proposed additions (details you did not ask for), criteria, non-goals, blast radius. It shows a short brief of the file and asks for approval once.
    For a medium or large spec it also publishes a page built from the spec (`artifacts` skill), and for a small one it asks whether you want one. You can edit the page's text in place and comment on it. The agent merges your edits into `specs/current.md` and asks for approval again. The page never approves: only the reply typed in the terminal does. The page link lives in `specs/current.url`.
-3. You read the spec and reply with exactly `approve spec`. Reply `ask me` first to get questions on a spec that guessed.
+3. You read the spec and reply `approve spec`: alone, or as the last line of a longer message, with `.` or `!` after it if you like. Anything else on that line does not count, and a short message that names the approval without giving it gets "Not approved" back at once. Reply `ask me` first to get questions on a spec that guessed.
 4. The agent loads `build`, implements the spec, then loads `finalize`: defects, cuts, fresh checks, report. `finalize` archives the spec to `specs/<date>-<slug>.md`, which ends the approval. It keeps the 5 newest archived specs.
 
-The hook puts a `.gitignore` with `*` in `specs/`, so git never tracks specs. To keep one spec in git, use `git add -f`. If a repo already tracks `specs/`, run `git rm -r --cached specs` once.
+The hook puts a `.gitignore` in `specs/` that lists only what ras writes there: `current.md`, `current.url`, `current.html`, the archived specs (`<date>-<slug>.md`), `review-*` and `research/`. Your own files in `specs/` stay visible to git. To keep one spec in git, use `git add -f`. If a repo already tracks `specs/`, run `git rm -r --cached specs` once.
+
+A `specs/.gitignore` from ras 6.4.0 or older holds a single `*`, which hides everything in the folder, and the hook does not rewrite it. To swap it, delete the file: the hook writes the new one the next time the agent writes a spec.
 
 ## Risky paths
 
-The hook denies `Edit`, `Write`, `NotebookEdit`, `Bash` and `PowerShell` writes on these paths until you approve a spec in this session. It always allows `specs/` and any path outside the project. It resolves `.` and `..` first, so `specs/../.env` is `.env`.
+The hook denies `Edit`, `Write`, `NotebookEdit`, `Bash`, `PowerShell` and `Monitor` writes on these paths until you approve a spec in this session. It always allows `specs/`, and any path outside the project except the two in your home folder named below. It resolves `.` and `..` first, so `specs/../.env` is `.env`.
 
 - `.github/workflows/`, `.github/actions/`, `.gitlab-ci.yml`
 - `.env` and `.env.*`, `.envrc`, but not `.env.example`, `.env.sample`, `.env.template`, `.env.dist`
@@ -51,9 +53,29 @@ The hook denies `Edit`, `Write`, `NotebookEdit`, `Bash` and `PowerShell` writes 
 - `prisma/schema.prisma`, `supabase/config.toml`
 - an `auth` or `permissions` folder, and files named `auth.*`, `permissions.*`, `policies.*`
 
-The hook protects itself. `.ras/` is always risky, except `.ras/handoffs/`, and so is `.claude/spec.*` (the approval and skip state). The agent cannot loosen the list or forge an approval on its own.
+Risky in every repo, also with your own list, because they can turn ras off:
 
-To use your own list, create `.ras/risky-paths` in the repo. One extended regular expression per line. Blank lines and lines that start with `#` are ignored, and CRLF line ends are fine. The file replaces the defaults. It matches the path relative to the repo root, in lower case. A pattern that is not a valid regex, or a file the hook cannot read, makes the hook deny every edit until you fix the file.
+- `.claude/settings.json` and `.claude/settings.*.json` in the project, and the same files in `~/.claude/`
+- `~/.claude/plugins/`, where the installed hook code lives
+- `claude plugin disable`, `uninstall` and `remove`, and `claude plugin marketplace remove`
+
+The hook checks the path of a settings file, not what the edit does to it. For a one-off settings change, reply `skip spec`.
+
+### Locked
+
+Some things stay denied for the agent whatever you approved, also under `skip spec`. If one of them must happen, you do it yourself.
+
+- `.ras/`, except `.ras/handoffs/`: it holds the risky-path list.
+- `.claude/spec.*` and the `.claude` folder itself: they hold the approval and skip state.
+- A `claude` run with `-c`, `--continue`, `-r`, `--resume` or `--session-id`. Such a run types into a session, so it could send `approve spec` for you.
+- A `CronCreate` or `ScheduleWakeup` prompt that reads `approve spec` or `skip spec` once case, spaces and punctuation are dropped. A scheduled prompt arrives like one you typed.
+- A call the hook cannot read: a command over 64 KB or 2,000 lines, or input with a `\u` escape. It could hide one of the targets above.
+
+One command can name several targets. The hook reads on after the first risky one, so `echo x > .env; echo y > .claude/spec.approved` is denied under an approval too.
+
+The lock reads the words of a command, like the rest of the guard. It does not follow `cd`, so `cd .claude && echo x > spec.approved` still passes, and it misses variables, globs and scripts.
+
+To use your own list, create `.ras/risky-paths` in the repo. One extended regular expression per line. Blank lines and lines that start with `#` are ignored, and CRLF line ends are fine. The file replaces the defaults. It matches the path relative to the repo root, in lower case. A pattern that is not a valid regex, or a file the hook cannot read, makes the hook deny every edit until you fix the file. The deny message names the line of the bad pattern. The file is locked for the agent, so you edit it yourself.
 
 ```
 # .ras/risky-paths
@@ -62,11 +84,22 @@ To use your own list, create `.ras/risky-paths` in the repo. One extended regula
 (^|/)\.env(\.[^/]*)?$
 ```
 
-The hook also checks `Bash` and `PowerShell`. It denies a command that writes to a risky path: a redirect target (`>`, `>>`, `&>`, `2>`), or an argument of `rm`, `mv`, `touch`, `tee`, `truncate`, `patch`, `sed -i`, `perl -i`, `dd of=`, `git apply`, `git rm`, `git mv`, `git restore`, `cp`, `ln` and `install` (the destination only), and the PowerShell cmdlets such as `Set-Content`, `Out-File` and `Remove-Item`. It also reads inside `sh -c`, `eval` and shell heredocs. Reading a risky file is fine, also into another file: `cat .env > x` passes, `cp x .env` does not. A command over 64 KB or 2,000 lines is denied: write the file with the Write tool. This is a guard rail, not a sandbox. It misses variables, globs, scripts and anything built at run time.
+The hook also checks `Bash`, `PowerShell` and the command of a `Monitor`. It denies a command that writes to a risky path: a redirect target (`>`, `>>`, `&>`, `2>`), or an argument of `rm`, `mv`, `ln`, `touch`, `tee`, `truncate`, `patch`, `sed -i`, `perl -i`, `dd of=`, `git apply`, `git rm`, `git mv`, `git restore`, and the PowerShell cmdlets such as `Set-Content`, `Out-File` and `Remove-Item`. It also reads inside `sh -c`, `eval` and shell heredocs. Reading a risky file is fine, also into another file: `cat .env > x` passes, `cp x .env` does not. A command over 64 KB or 2,000 lines is denied: write the file with the Write tool. This is a guard rail, not a sandbox. It misses variables, globs, scripts and anything built at run time.
+
+For a copy the hook checks where the file lands:
+
+- `cp` and `install`: the destination, which is the `-t` value or the last word. When the destination is a folder, the hook also checks the folder plus each source name, so `cp -t .github/workflows a.yml` and `cp a.sql b.sql out` are denied. It takes the destination for a folder when `-t` names it, when it ends in a slash, or when there are several sources. `cp a.sql db` with `db` a folder is still read as the file `db`.
+- `mv`: every argument, and the same folder check, so `mv schema.prisma prisma/` is denied.
+- `Copy-Item`: the `-Destination` value, or the last word when there is none.
+- `git checkout`: the words after `--`. Without `--`, every word after the first, which is the branch or commit, so `git checkout feature/auth` passes and `git checkout main .env` does not. `git checkout .env` with a single word still passes.
 
 The hook also checks folders. When `rm`, `mv`, `git rm`, `git mv` or their PowerShell forms take a folder, the hook asks git for the tracked files in it. It denies the command when one of those files is risky, so it denies `rm -rf .github` and `rm -rf supabase`. It does not check a destination this way: `mv notes.md supabase/` passes. Untracked files do not count, and outside a git repo the folder check does nothing.
 
-An approval lasts for the session that got it, and only while the spec is unchanged. Archiving the spec ends it. A new session, `/clear`, or a change to the spec ends it too. Approval state lives in `.claude/` and is git-ignored. Reply `skip spec` to skip the gate for this session until your next prompt.
+An approval lasts for the session that got it, and only while the spec is unchanged. Archiving the spec ends it. `/clear` or a change to the spec ends it too, and a new session starts without one. Each session has its own line in `.claude/spec.approved`, so two sessions in one repo can each hold an approval, and starting a third ends neither. Approval state lives in `.claude/` and is git-ignored. An approval made under ras 6.4.0 or older does not carry over: reply `approve spec` once more after the update.
+
+Reply `skip spec` to skip the gate for this session until your next prompt. It takes the same forms as `approve spec`, and a prompt in another session does not end it. The locked items above stay denied.
+
+To turn ras off, do it yourself: `claude plugin disable ras@magicjosh` in a terminal. The agent needs an approved spec or `skip spec` to run that command.
 
 Security review is not tied to paths. `security-check` should load in either lane when a change touches auth, permissions, secrets, payments, personal data or data deletion.
 

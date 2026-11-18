@@ -55,8 +55,8 @@ Run this Bash command, with today's date and a short slug. Moving the spec ends 
 
 ```
 mv specs/current.md specs/<date>-<slug>.md
-ls -t specs/2*.md | tail -n +6 | xargs rm -f
+ls -t specs/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.md | tail -n +6 | xargs rm -f
 rm -f specs/current.url specs/current.html
 ```
 
-The second line keeps the 5 newest archived specs. The third drops the spec page's link and local copy, so the next spec gets its own page; the published page stays. Git is the rollback, not the specs. The next change needs a new spec and a new approval.
+Write the date as `YYYY-MM-DD`: the second line keeps the 5 newest archived specs and matches only that form, so it never deletes a repo's own file in `specs/`. The third drops the spec page's link and local copy, so the next spec gets its own page; the published page stays. Git is the rollback, not the specs. The next change needs a new spec and a new approval.
