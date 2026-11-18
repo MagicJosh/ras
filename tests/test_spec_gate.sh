@@ -360,5 +360,33 @@ bash_ "rm -f specs/current.url specs/current.html"; check "Bash: the finalize cl
 mkspec; say "approve spec" >/dev/null; printf 'https://example.com/a\n' > "$proj/specs/current.url"; : > "$proj/specs/current.html"
 write "$R"; check "the page files do not change the approval" 0 $?
 
+# Stop: one reminder of /scope-review when finalize archived the approved spec.
+reset; mkspec; say "approve spec" >/dev/null
+bash_ "mv specs/current.md specs/2026-01-02-t.md"; check "archive reminder: finalize's mv is allowed" 0 $?
+out=$(stop 'Done.'); check "archive reminder: silent while the spec is still there" "" "$out"
+mv "$SP" "$proj/specs/2026-01-02-t.md"
+SID=s2; out=$(stop 'Done.'); check "archive reminder: another session stays silent" "" "$out"
+[ -f "$S/spec.approved" ]; check "archive reminder: another session keeps the marker" 0 $?
+SID=s1; out=$(stop 'Done.'); json_ok "$out" 'Run /scope-review'; check "archive reminder: shown after the archive" 0 $?
+out=$(stop 'Done.'); check "archive reminder: shown once" "" "$out"
+reset; mkspec; rm "$SP"; out=$(stop 'Done.'); check "archive reminder: silent when nothing was approved" "" "$out"
+# A turn that must be blocked is blocked first. The reminder comes on the retry.
+SID=t6; printf '# Spec: t\n\n## Goal\nG.\n' > "$g/specs/current.md"; gp "approve spec"; gp "build it"
+printf 'z\n' >> "$g/a.py"; rm "$g/specs/current.md"
+out=$(gs 'Done.' false); blocked 'touched'; check "archive reminder: the Decisions block comes first" 0 $?
+out=$(gs 'Done.' true); json_ok "$out" 'Run /scope-review'; check "archive reminder: shown on the retry" 0 $?
+SID=s1
+
+# SessionStart: a spec left unapproved is named, with a fixed sentence.
+reset; mkspec; printf '\n## Decisions\n- "quoted" text\n' >> "$SP"
+out=$(gate SessionStart '{"source":"startup","session_id":"s1"}'); printf '%s' "$out" | $py -c 'import json,sys; t=json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"]; sys.exit(0 if "already holds a spec" in t and "quoted" not in t else 1)'; check "SessionStart names an unapproved spec, as valid JSON" 0 $?
+reset; out=$(gate SessionStart '{"source":"startup","session_id":"s1"}'); printf '%s' "$out" | grep -q 'already holds a spec'; check "SessionStart: no notice without a spec" 1 $?
+reset; mkspec; say "approve spec" >/dev/null; out=$(gate SessionStart '{"source":"resume","session_id":"s1"}'); printf '%s' "$out" | grep -q 'already holds a spec'; check "SessionStart: no notice for a spec approved in this session" 1 $?
+
+# SessionStart drops turn snapshots older than a day and keeps fresh ones.
+: > "$tmp/ras-turn-old"; touch -t 202001010000 "$tmp/ras-turn-old"; : > "$tmp/ras-turn-new"
+gate SessionStart '{"source":"resume","session_id":"s1"}' >/dev/null
+[ ! -e "$tmp/ras-turn-old" ] && [ -e "$tmp/ras-turn-new" ]; check "SessionStart removes only old turn snapshots" 0 $?
+
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]

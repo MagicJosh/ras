@@ -39,6 +39,18 @@ approved() {
   [ "$a" = "$(cksum < "$spec")" ] && [ "$b" = "$sid" ]
 }
 
+# The approval marker, read and cleared only here and in approved().
+# True when the marker names this session, whatever the spec looks like now.
+marked() {
+  [ -n "$sid" ] && [ -f "$d/spec.approved" ] || return 1
+  a= b=
+  { IFS= read -r a || :; IFS= read -r b || :; } < "$d/spec.approved"
+  [ "$b" = "$sid" ]
+}
+unmark() { rm -f "$d/spec.approved"; }
+# True when this session approved a spec and the spec is gone: finalize archived it.
+archived() { [ ! -f "$spec" ] && marked; }
+
 # True when this session said "skip spec": the file holds its session id, which must not be empty.
 skipped() {
   [ -n "$sid" ] && [ -f "$d/spec.skip" ] || return 1
@@ -90,7 +102,12 @@ SessionStart)
   [ -d "$proj/specs" ] && ign
   # A new or cleared session starts unapproved. Resume and compact keep the approval.
   case $(field source) in startup | clear | '') rm -f "$d/spec.approved" "$d/spec.skip" ;; esac
-  printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"ras plugin. Work normally and keep diffs small.\nThe user can run /spec (or /ras:spec) for a plan: the spec skill asks the open questions, writes specs/current.md and waits for `approve spec`.\nRisky paths (CI, env files, migrations, SQL, infra, auth) are locked until a spec is approved. If a hook denies an edit, load spec.\nFor a failure with an unknown cause, load diagnose. For a question that needs facts from outside the repo, such as a library choice or breaking changes between versions, load research before you answer. When a change touches auth, permissions, secrets, payments, personal data or deletes, load security-check.\nEnd every reply that changed code with a short Decisions section: choices you made that the user did not specify, and what you skipped or did not check, or none."}}' ;;
+  # Turn snapshots of sessions that ended more than a day ago. Best effort.
+  find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'ras-turn-*' -mtime +0 -exec rm -f {} + 2>/dev/null || :
+  # A spec left from earlier work: say so, because `approve spec` would approve that file. A fixed sentence, never spec text.
+  old=
+  if [ -f "$spec" ] && ! approved; then old=' specs/current.md already holds a spec that is not approved in this session. Tell the user it is there before you start work on a spec.'; fi
+  printf '%s%s%s\n' '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"ras plugin. Work normally and keep diffs small.\nThe user can run /spec (or /ras:spec) for a plan: the spec skill asks the open questions, writes specs/current.md and waits for `approve spec`.' "$old" '\nRisky paths (CI, env files, migrations, SQL, infra, auth) are locked until a spec is approved. If a hook denies an edit, load spec.\nFor a failure with an unknown cause, load diagnose. For a question that needs facts from outside the repo, such as a library choice or breaking changes between versions, load research before you answer. When a change touches auth, permissions, secrets, payments, personal data or deletes, load security-check.\nEnd every reply that changed code with a short Decisions section: choices you made that the user did not specify, and what you skipped or did not check, or none."}}' ;;
 UserPromptSubmit)
   if printf '%s' "$input" | grep -qE '"agent_id"[[:space:]]*:'; then allow; fi
   p=$(field prompt | tr 'A-Z' 'a-z' | sed -E 's/^(\\[nrt]|[[:space:]])+//; s/(\\[nrt]|[[:space:]])+$//')
@@ -124,14 +141,25 @@ Stop)
     printf '{"systemMessage":"%s"}\n' "$msg"
     exit 0
   fi
+  # A Stop that has nothing else to say. When finalize archived the approved spec, remind the user
+  # once of /scope-review. Only the user can start it, so this is a message and not a block.
+  quiet() {
+    if archived; then
+      unmark
+      trap - EXIT
+      printf '%s\n' '{"systemMessage":"ras: the approved spec is archived. Run /scope-review to check the change against it."}'
+      exit 0
+    fi
+    allow
+  }
   # Fallback: the turn changed files and the reply has no Decisions heading. Ask once.
-  if printf '%s' "$input" | grep -qE '"stop_hook_active"[[:space:]]*:[[:space:]]*true'; then allow; fi
-  printf '%s' "$last" | grep -qE '(^|\\n)[[:space:]]*([-*+][[:space:]]+)?(#+[[:space:]]*|\*\*)?decisions' && allow
+  if printf '%s' "$input" | grep -qE '"stop_hook_active"[[:space:]]*:[[:space:]]*true'; then quiet; fi
+  printf '%s' "$last" | grep -qE '(^|\\n)[[:space:]]*([-*+][[:space:]]+)?(#+[[:space:]]*|\*\*)?decisions' && quiet
   t=$(turn)
-  [ -n "$t" ] && [ -f "$t" ] || allow
-  git -C "$proj" rev-parse --is-inside-work-tree >/dev/null 2>&1 || allow
+  [ -n "$t" ] && [ -f "$t" ] || quiet
+  git -C "$proj" rev-parse --is-inside-work-tree >/dev/null 2>&1 || quiet
   n=$(snap | grep -vxFc -f "$t" || :)
-  [ "${n:-0}" -gt 0 ] || allow
+  [ "${n:-0}" -gt 0 ] || quiet
   trap - EXIT
   printf '{"decision":"block","reason":"ras: this turn touched %s files. End your reply with a short Decisions section: the choices you made that the user did not specify, and what you skipped or did not check, or none."}\n' "$n"
   exit 0 ;;

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- The Stop hook reminds you once of `/scope-review` when `finalize` has archived the spec you approved in this session. It is a message to the user and costs no extra turn: a hook cannot start a user-only skill. A turn that must end with a Decisions section is still blocked first, and the reminder comes on the retry.
+- Session start names a `specs/current.md` that is not approved in this session, because `approve spec` would approve that file. The sentence is fixed and holds no text from the spec.
+- Session start removes turn snapshots (`ras-turn-*` in the temp folder) that are more than a day old. They were never deleted before.
+
 ## 6.4.0
 
 - New `research` skill, for a question that needs outside sources: a library or tool choice, breaking changes between versions, or how an external API behaves. It reads the installed versions first, picks a size (no agent, one researcher, or at most 3 for independent options), checks each claim the answer rests on against its page, and saves the result to `specs/research/<date>-<slug>.md`. The result has a fixed form (`references/template.md`): the answer, an evidence table with a status per claim (`verified`, `search summary`, `inference`, `not verified`), conflicts, gaps and one check the reader can run.
