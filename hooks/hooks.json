@@ -23,7 +23,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Edit|Write|NotebookEdit|Bash|PowerShell",
+        "matcher": "Edit|Write|NotebookEdit|Bash|PowerShell|Monitor|CronCreate|ScheduleWakeup",
         "hooks": [
           { "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/spec-gate.sh\" PreToolUse", "timeout": 30, "onFailure": "block" }
         ]

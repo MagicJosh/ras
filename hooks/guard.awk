@@ -1,8 +1,11 @@
 # guard.awk (ras 6): the PreToolUse check, in one awk process. POSIX awk. Run with LC_ALL=C.
 # Reads one hook event (JSON) on stdin and prints two lines: the session id, then a verdict:
-#   ok | specs | risky <path> (matches <pattern>) | cannot <reason>
+#   ok | specs | risky <path> (matches <pattern>) | locked <what> (<why>) | cannot <reason>
+# risky needs an approved spec or skip spec. locked and cannot are denied whatever the session approved:
+# a locked path holds ras's own state, and a locked command or prompt would type the approval for the user.
+# One command can name several targets. The strongest verdict decides, so the walk goes on after a risky hit.
 # Exits 1 on input it cannot parse, a bad pattern or an unreadable .ras/risky-paths. The shell then denies.
-# Env: CLAUDE_PROJECT_DIR, and RAS_RISKY = the .ras/risky-paths file when it exists. Strings come in through
+# Env: CLAUDE_PROJECT_DIR, HOME (or USERPROFILE), and RAS_RISKY = the .ras/risky-paths file when it exists. Strings come in through
 # ENVIRON because awk -v would process backslash escapes. Regexes use [.] instead of \. for the same reason.
 # A guard rail for the agent, not a sandbox: it reads redirects and the arguments of write commands.
 # For rm and mv it also asks git (ls-files, one call) for the tracked files in a folder that the command takes.
@@ -74,10 +77,24 @@ function load(f,   line, r, x, cr) {
   close(f)
   if (np) x = ("" ~ all)
 }
+# Why the repo-relative, lowercase path w is locked, or "". The agent cannot loosen the list or forge a state file.
+function locked(w) {
+  if (w ~ /(^|\/)[.]ras(\/|$)/ && w !~ /(^|\/)[.]ras\/handoffs(\/|$)/) return ".ras/ holds the risky-path list"
+  if (w ~ /(^|\/)[.]claude\/spec[.]/) return ".claude/spec.* holds the approval state"
+  if (w ~ /(^|\/)[.]claude$/) return "the .claude folder holds the approval state"
+  return ""
+}
+# Why the lowercase absolute path p under the home folder is risky, or "": user settings and installed plugins.
+function homep(p) {
+  if (home == "" || index(p "/", home "/") != 1) return ""
+  p = substr(p, length(home) + 2)
+  if (p ~ /^[.]claude\/settings[^\/]*[.]json$/) return "~/.claude/settings*.json, " OFF
+  if (p ~ /^[.]claude\/plugins(\/|$)/) return "~/.claude/plugins/, " OFF
+  return ""
+}
 # Print the pattern that makes the repo-relative, lowercase path w risky. Print nothing if none does.
 function risky(w,   k) {
-  if (w ~ /(^|\/)[.]ras(\/|$)/ && w !~ /(^|\/)[.]ras\/handoffs(\/|$)/) return ".ras/"
-  if (w ~ /(^|\/)[.]claude\/spec[.]/) return ".claude/spec.*"
+  if (w ~ /(^|\/)[.]claude\/settings[^\/]*[.]json$/) return ".claude/settings*.json, " OFF
   if (!ovr && w ~ /(^|\/)[.]env[.](example|sample|template|dist)$/) return ""
   if (np == 0 || w !~ all) return "" # one regex first: gawk compiles a dynamic regex again each time it changes
   for (k = 1; k <= np; k++) if (w ~ pat[k]) return pat[k]
@@ -90,7 +107,7 @@ function odd(s,   l, k) { l = length(s); k = 0; while (l > 0 && substr(s, l, 1) 
 # Walk the quotes once. A string followed by a colon is a key. raw[key] = the raw text of the first string value.
 function parse(j,   n, i, ins, cur, cap, joined, t, want) {
   if (j !~ /^[[:space:]]*[{]/) fail("the hook input is not a JSON object")
-  K["session_id"] = K["tool_name"] = K["command"] = K["file_path"] = K["notebook_path"] = 1
+  K["session_id"] = K["tool_name"] = K["command"] = K["file_path"] = K["notebook_path"] = K["prompt"] = 1
   n = split(j, sg, "\"")
   for (i = 1; i < n; i++) {
     if (!ins) { ins = 1; cur = sg[i + 1]; joined = 0; cap = (want != ""); continue }
@@ -128,24 +145,38 @@ function dec(s,   m, j, c, o) {
 
 # ---- the shell tokenizer
 function push(s, ps) { qt[++qn] = s; qp[qn] = ps }
-function chk(w,   h) { if (hitv == "" && w != "") { h = cand(w); if (h != "") hitv = h } }
+# One path word: the first locked one goes to lockv, the first risky one to hitv.
+function chk(w,   h, r) {
+  if (w == "") return
+  r = rel(w)
+  if (lockv == "" && !outp && r !~ /^specs\//) { h = locked(r); if (h != "") { lockv = r " (" h ")"; return } }
+  if (hitv == "") { h = cand(w); if (h != "") hitv = h }
+}
 # The path of word w, relative to the project. Sets outp when it is outside: ~ or an absolute path elsewhere.
+# Sets pa to the absolute path. ~, $HOME and $env:USERPROFILE at the start stand for the home folder.
 function rel(w) {
-  outp = 0
-  if (substr(w, 1, 1) == "~") { outp = 1; return "" }
+  outp = 0; pa = ""
   w = norm(w)
+  if (w ~ /^(~|[$]home|[$][{]home[}]|[$]env:(userprofile|home))(\/|$)/) {
+    if (home == "") { outp = 1; return "" }
+    sub(/^[^\/]*/, "", w); w = home w
+  }
+  if (substr(w, 1, 1) == "~") { outp = 1; return "" }
   if (w ~ /^(\/|[a-z]:\/)/) {
-    w = canon(w)
+    w = canon(w); pa = w
     if (index(w "/", base "/") != 1) { outp = 1; return "" }
     return substr(w, length(base) + 2)
   }
+  pa = canon(base "/" w)
   return canon(w)
 }
 # One path word. Print "path (matches pattern)" when it is risky.
 function cand(w,   h) {
   w = rel(w)
-  if (outp || w == "" || w ~ /^specs\//) return ""
+  if (outp) { h = homep(pa); return h == "" ? "" : pa " (matches " h ")" }
+  if (w == "" || w ~ /^specs\//) return ""
   h = risky(w)
+  if (h == "") h = homep(pa)
   return h == "" ? "" : w " (matches " h ")"
 }
 # An argument of a write command: an option is no path, but --opt=value and a=value check the value.
@@ -177,33 +208,94 @@ function fadd(w) {
   if (outp || w ~ /^([.][.]|specs)(\/|$)/) return # outside the project, or specs/ (its lines are skipped below)
   fc[++nfc] = (w == "" ? "." : w)
 }
-# One git call for all candidates: the first tracked file below them that is risky. Git missing, no repo or an error: "".
-function fcheck(   gc, i, f, h) {
+# One git call for all candidates: the tracked files below them. The first locked one goes to lockv, the first
+# risky one to hitv. Git missing, no repo or an error: nothing.
+function fcheck(   gc, i, f, h, in_) {
   gc = "GIT_ICASE_PATHSPECS=1 git -C " sq(ENVIRON["CLAUDE_PROJECT_DIR"]) " -c core.quotepath=false ls-files --"
   for (i = 1; i <= nfc; i++) gc = gc " " sq("./" fc[i])
   gc = gc " 2>/dev/null"
+  in_ = ", in a folder that this command removes or moves"
   while ((gc | getline f) > 0) {
     if (f ~ /^".*"$/) f = substr(f, 2, length(f) - 2)
     f = tolower(f)
     if (f ~ /^specs\//) continue
-    h = risky(f)
-    if (h != "") { close(gc); return f " (matches " h "), in a folder that this command removes or moves" }
+    h = locked(f)
+    if (h != "") { lockv = f " (" h ")" in_; break }
+    if (hitv == "") { h = risky(f); if (h != "") hitv = f " (matches " h ")" in_ }
   }
   close(gc)
-  return ""
+}
+# cp, install and mv: the destination, and for a folder destination the folder plus each source name.
+# The destination is a folder when -t names it, when it ends in a slash, or when there are several sources.
+# Reads aw[], the words in their own case: -t takes a value, -T does not.
+# shortcut: cp a.sql db with db a folder is checked as the file db, upgrade when the end-of-turn check lands
+function dest(   k, a, d, dir, ns, vopt) {
+  vopt = (cmd == "install") ? "mogS" : "S" # the short options that take a value
+  d = ""; dir = 0; ns = 0
+  for (k = 1; k <= na; k++) {
+    a = aw[k]
+    if ((a ~ /^-[a-zA-Z]*t$/ || a == "--target-directory") && k < na) { d = aw[++k]; dir = 1 } # -t, also at the end of a group: -vt
+    else if (a ~ /^--target-directory=/) { d = substr(a, 20); dir = 1 }
+    else if (a ~ /^-[a-zA-Z]$/ && index(vopt, substr(a, 2)) && k < na) k++
+    else if (a ~ /^-./) { if (index(a, "=")) chk(substr(a, index(a, "=") + 1)) }
+    else src[++ns] = a
+  }
+  if (!dir) {
+    if (!ns) return
+    d = src[ns--]; dir = (d ~ /[\/\\]$/ || ns > 1)
+  }
+  chk(d)
+  if (dir) for (k = 1; k <= ns; k++) {
+    a = src[k]; gsub(/\\/, "/", a); sub(/\/+$/, "", a); sub(/.*\//, "", a)
+    if (a != "") chk(d "/" a)
+  }
+}
+# git checkout: the words after --. Without --, every plain word after the first, which is the branch or commit.
+# With -b, -B, --orphan or --track every word is a branch or a start point.
+function gco(from,   k, a, dd, p) {
+  dd = 0
+  for (k = from; k <= na; k++) if (ar[k] == "--") { dd = k; break }
+  if (dd) { for (k = dd + 1; k <= na; k++) chk(ar[k]); return }
+  for (k = from; k <= na; k++) if (ar[k] ~ /^-(b|t|-orphan|-track)/) return
+  p = 0
+  for (k = from; k <= na; k++) { a = ar[k]; if (a ~ /^-/) continue; if (p++) chk(a) }
+}
+# claude: a run that resumes or names a session types into that session, so it is locked. The plugin commands that
+# remove or disable a plugin can turn ras off, so they are risky.
+function claude(   k, a, s) {
+  for (k = 1; k <= na; k++) {
+    a = aw[k]
+    if (a ~ /^--(continue|resume|session-id|from-pr|teleport)(=|$)/ || a ~ /^-[a-z]*[cr][a-z]*$/ || (k == 1 && a ~ /^(attach|respawn)$/)) {
+      if (lockv == "") lockv = "claude " a " (it types into a session, and only the user approves or skips)"
+      return
+    }
+  }
+  if (na < 2 || ar[1] !~ /^plugins?$/) return
+  s = ar[2]
+  if (s == "marketplace" && na > 2) s = s " " ar[3]
+  if (hitv == "" && s ~ /^(disable|uninstall|remove|rm|marketplace (remove|rm))$/) hitv = "claude plugin " s " (matches a command that " OFF ")"
 }
 # The simple command is complete: check its arguments by the command word.
 function evalcmd(   k, a, last, g, s, j) {
   if (cmd in WR) {
     for (k = 1; k <= na; k++) argchk(ar[k])
     if (cmd in DEL || cmd in MOV) fold(1, cmd in MOV)
+    if (cmd == "mv") dest()
     return
   }
-  if (cmd in DST) { # the destination only: reading a risky file into another file passes
-    last = ""
-    for (k = 1; k <= na; k++) { a = ar[k]; if (a ~ /^-/ || index(a, "=")) argchk(a); else last = a }
-    chk(last); return
+  # Copies check the destination only: reading a risky file into another file passes.
+  if (cmd in PCP || (cps && cmd == "cp")) { # Copy-Item, and cp is its alias in PowerShell: the -Destination value, else the last plain word
+    g = ""; last = ""
+    for (k = 1; k <= na; k++) {
+      a = ar[k]
+      if (a ~ /^-des[a-z]*:/) g = substr(a, index(a, ":") + 1)
+      else if (a ~ /^-des[a-z]*$/ && k < na) g = ar[++k]
+      else if (a !~ /^-/) last = a
+    }
+    chk(g != "" ? g : last); return
   }
+  if (cmd == "cp" || cmd == "install") { dest(); return }
+  if (cmd == "claude" || cmd == "claude-code") { claude(); return }
   if (cmd == "dd") { for (k = 1; k <= na; k++) if (ar[k] ~ /^of=/) chk(substr(ar[k], 4)); return }
   if (cmd == "sed" || cmd == "perl") {
     g = 0
@@ -211,38 +303,45 @@ function evalcmd(   k, a, last, g, s, j) {
     if (g) for (k = 1; k <= na; k++) argchk(ar[k])
     return
   }
-  if (cmd == "git") { # git -c x=y -C dir <sub> ...; checkout is left out, because feature/auth is a branch
+  if (cmd == "git") { # git -c x=y -C dir <sub> ...
     g = ""
     for (k = 1; k <= na; k++) {
       a = ar[k]
       if (g != "") argchk(a)
       else if (a == "-c") k++
-      else if (a !~ /^-/) { g = a; if (!(g in GIT)) return; if (g == "rm" || g == "mv") fold(k + 1, g == "mv") }
+      else if (a !~ /^-/) {
+        g = a
+        if (g == "checkout") { gco(k + 1); return }
+        if (!(g in GIT)) return
+        if (g == "rm" || g == "mv") fold(k + 1, g == "mv")
+      }
     }
     return
   }
-  if (cmd in SHELL) { for (k = 1; k < na; k++) if (ar[k] ~ /^-[a-z]*c$/) { push(ar[k + 1], 0); return }; return }
+  if (cmd in SHELL) { for (k = 1; k < na; k++) if (ar[k] ~ /^-[a-z]*c$/) { push(aw[k + 1], 0); return }; return }
   if (cmd == "pwsh" || cmd == "powershell") {
     for (k = 1; k <= na; k++) if (ar[k] == "-c" || ar[k] == "-command") {
       s = ""
-      for (j = k + 1; j <= na; j++) s = s (j > k + 1 ? " " : "") ar[j]
+      for (j = k + 1; j <= na; j++) s = s (j > k + 1 ? " " : "") aw[j]
       if (s != "") push(s, 1)
       return
     }
     return
   }
-  if (cmd == "eval" && na > 0) { s = ar[1]; for (k = 2; k <= na; k++) s = s " " ar[k]; push(s, 0) }
+  if (cmd == "eval" && na > 0) { s = aw[1]; for (k = 2; k <= na; k++) s = s " " aw[k]; push(s, 0) }
 }
 function endcmd(   k) {
   if (cmd != "") evalcmd()
   if (cmd in SHELL) for (k = hd0; k <= hdn; k++) hds[k] = 1 # a heredoc fed to a shell is a script
   hd0 = hdn + 1; cmd = ""; pre = 0; na = 0
 }
-function word(w,   b) {
-  if (cmd != "") { ar[++na] = w; return }
-  if (w ~ /^[a-z_][a-z0-9_]*=/) return
+# ar[] holds the arguments in lower case, because PowerShell and Windows paths ignore case. aw[] keeps their own case.
+function word(w,   b, lw) {
+  lw = tolower(w)
+  if (cmd != "") { ar[++na] = lw; aw[na] = w; return }
+  if (lw ~ /^[a-z_][a-z0-9_]*=/) return
   if (pre && w ~ /^-/) return # shortcut: options of sudo, env and friends that take a value (sudo -u root) are not skipped, upgrade when such a call slips through
-  b = w; gsub(/\\/, "/", b); sub(/.*\//, "", b); sub(/[.]exe$/, "", b)
+  b = lw; gsub(/\\/, "/", b); sub(/.*\//, "", b); sub(/[.](exe|cmd)$/, "", b)
   if (b in SK) { pre = (b in SP); return }
   cmd = b; pre = 0; na = 0
 }
@@ -260,7 +359,7 @@ function endword(   w) {
 function walk(c, ps,   n, i, ch, nx, t, esc, k, m, j, l, used, body) {
   n = length(c); i = 1; esc = ps ? "`" : "\\"
   wd = ""; inw = 0; wq = 0; rd = 0; cmd = ""; pre = 0; na = 0; hdn = 0; hd0 = 1; cps = ps
-  while (i <= n && hitv == "") {
+  while (i <= n && lockv == "") {
     ch = substr(c, i, 1)
     if (ch == "'") {
       inw = 1; wq = 1; i++
@@ -340,10 +439,21 @@ function shell(c, ps) {
   c = dec(c)
   if (uesc) return USC
   if (length(c) > 65536 || lines(c) > 2000) return TOOLONG
-  push(tolower(c), ps)
-  for (qi = 1; qi <= qn && hitv == ""; qi++) walk(qt[qi], qp[qi])
-  if (hitv == "" && nfc) hitv = fcheck()
+  push(c, ps)
+  for (qi = 1; qi <= qn && lockv == ""; qi++) walk(qt[qi], qp[qi])
+  if (lockv == "" && nfc) fcheck()
+  if (lockv != "") return "locked " lockv
   return hitv == "" ? "ok" : "risky " hitv
+}
+# A prompt that CronCreate or ScheduleWakeup would send later. It arrives as a user prompt, so one that holds
+# the approval or the skip phrase would approve for the user. Looser than the prompt hook on purpose.
+function sched(p) {
+  if (length(p) > 65536) return "cannot this scheduled prompt is too long for the guard (over 64 KB)"
+  p = tolower(dec(p))
+  if (uesc) return USC
+  gsub(/[^a-z]/, "", p)
+  if (index(p, "approvespec") || index(p, "skipspec")) return "locked a scheduled prompt that reads approve spec or skip spec (only the user types those)"
+  return "ok"
 }
 
 # ---- the verdict
@@ -351,12 +461,16 @@ function filetool(p,   rel, h) {
   p = dec(p)
   if (uesc) return USC
   p = norm(p)
+  if (p ~ /^~\// && home != "") p = home substr(p, 2)
   if (p !~ /^(\/|[a-z]:)/) p = base "/" p
   p = canon(p)
-  if (index(p "/", base "/") != 1) return "ok"
+  if (index(p "/", base "/") != 1) { h = homep(p); return h == "" ? "ok" : "risky " p " (matches " h ")" }
   rel = substr(p, length(base) + 2)
   if (rel ~ /^specs\//) return "specs"
+  h = locked(rel)
+  if (h != "") return "locked " rel " (" h ")"
   h = risky(rel)
+  if (h == "") h = homep(p)
   return h == "" ? "ok" : "risky " rel " (matches " h ")"
 }
 
@@ -364,10 +478,11 @@ function filetool(p,   rel, h) {
 END {
   TOOLONG = "cannot this command is too long for the guard (over 64 KB or 2,000 lines). Write the file with the Write tool"
   USC = "cannot the input has a \\u escape, which the guard cannot check"
-  set(SK, "sudo env command exec nohup builtin xargs time if then else elif do while until ! { }")
-  set(SP, "sudo env command exec nohup builtin xargs time")
-  set(WR, "rm rmdir mv touch truncate tee patch shred unlink set-content add-content out-file new-item remove-item move-item rename-item clear-content tee-object sc ac ni ri rni ren mi move del erase rd clc")
-  set(DST, "cp ln install copy-item cpi copy")
+  set(SK, "sudo env command exec nohup builtin xargs time npx bunx if then else elif do while until ! { }")
+  set(SP, "sudo env command exec nohup builtin xargs time npx bunx")
+  OFF = "which can turn ras off"
+  set(WR, "rm rmdir mv ln touch truncate tee patch shred unlink set-content add-content out-file new-item remove-item move-item rename-item clear-content tee-object sc ac ni ri rni ren mi move del erase rd clc")
+  set(PCP, "copy-item cpi copy")
   set(DEL, "rm rmdir unlink remove-item ri del erase rd")
   set(MOV, "mv move-item mi move rename-item rni ren")
   set(SHELL, "sh bash dash zsh ksh")
@@ -376,10 +491,14 @@ END {
   parse(json)
   if (index(raw["session_id"], "\n")) fail("a newline in session_id")
   base = canon(norm(ENVIRON["CLAUDE_PROJECT_DIR"]))
+  home = ENVIRON["HOME"]; if (home == "") home = ENVIRON["USERPROFILE"]
+  home = canon(norm(home)); if (home == "/") home = ""
   tool = raw["tool_name"]
-  if (tool == "Bash" || tool == "PowerShell") {
+  if (tool == "Bash" || tool == "PowerShell" || tool == "Monitor") { # a Monitor command runs in the Bash shell
     v = "ok"
     if (raw["command"] != "") v = shell(raw["command"], tool == "PowerShell")
+  } else if (tool == "CronCreate" || tool == "ScheduleWakeup") {
+    v = ("prompt" in raw) ? sched(raw["prompt"]) : "cannot no prompt in the tool input"
   } else {
     p = raw["file_path"]; if (p == "") p = raw["notebook_path"]
     v = (p == "") ? "cannot no file_path in the tool input" : filetool(p)

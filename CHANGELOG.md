@@ -1,7 +1,23 @@
 # Changelog
 
-## Unreleased
+## 6.5.0
 
+After the update, reply `approve spec` once more in a session that held an approval: the approval file has a new form.
+
+- Only you can approve a spec. A `CronCreate` or `ScheduleWakeup` prompt that reads `approve spec` or `skip spec` is denied, and so is a `claude` run with `-c`, `--continue`, `-r`, `--resume` or `--session-id`. Both arrive like a prompt you typed, and the first was seen to approve a spec on its own.
+- New level: locked. `.ras/` (except `.ras/handoffs/`), `.claude/spec.*` and the `.claude` folder stay denied for the agent under an approved spec and under `skip spec`. Before, an approval for one change also opened the approval file itself.
+- A command with several targets is read to the end. `echo x > .env; echo y > .claude/spec.approved` passed under an approval, because the check stopped at `.env`.
+- A call the hook cannot read (over 64 KB or 2,000 lines, or a `\u` escape) is denied under an approval and under `skip spec` too.
+- Settings files (`.claude/settings*.json` in the project and in `~/.claude/`), `~/.claude/plugins/`, and `claude plugin disable`, `uninstall`, `remove` and `marketplace remove` are risky in every repo, because they can turn ras off. The deny message names `skip spec` as the short way through.
+- `Monitor` commands are checked like `Bash`.
+- Copies are checked where the file lands: the `-t` value of `cp` and `install`, the folder plus the source name (`mv schema.prisma prisma/`, `cp a.sql b.sql out`), every argument of `ln`, and the `-Destination` value of `Copy-Item`. `Copy-Item -Path src -Destination out -Exclude .env` is no longer denied.
+- `git checkout` is checked: the words after `--`, or without `--` every word after the first. `git checkout HEAD~1 -- .ras/risky-paths` passed before.
+- One approval line per session. Two sessions in one repo can each hold an approval, and a new session no longer ends the others. A session without an id is never approved.
+- `skip spec` ends at your next prompt in the same session. A prompt in another session ended it before.
+- `approve spec` and `skip spec` also count as the last line of a longer message, and with `.` or `!` after them. A short prompt that names the approval without giving it, such as `approve spec later`, gets "Not approved" back at once.
+- `specs/.gitignore` lists only what ras writes (`current.md`, `current.url`, `current.html`, archived specs, `review-*`, `research/`), so a repo's own files in `specs/` are visible to git. An existing file with `*` stays: the README says how to swap it.
+- `finalize` deletes only archives named `YYYY-MM-DD-<slug>.md`. The old `specs/2*.md` could match a repo's own file.
+- A bad pattern in `.ras/risky-paths` is named by its line in the deny message.
 - The Stop hook reminds you once of `/scope-review` when `finalize` has archived the spec you approved in this session. It is a message to the user and costs no extra turn: a hook cannot start a user-only skill. A turn that must end with a Decisions section is still blocked first, and the reminder comes on the retry.
 - Session start names a `specs/current.md` that is not approved in this session, because `approve spec` would approve that file. The sentence is fixed and holds no text from the spec.
 - Session start removes turn snapshots (`ras-turn-*` in the temp folder) that are more than a day old. They were never deleted before.

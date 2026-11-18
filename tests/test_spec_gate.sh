@@ -7,8 +7,10 @@ tmp=$(mktemp -d)
 g=$(mktemp -d)
 g3=$(mktemp -d)
 gf=$(mktemp -d)
-trap 'rm -rf "$proj" "$tmp" "$g" "$g3" "$gf"' EXIT
+hm=$(mktemp -d)
+trap 'rm -rf "$proj" "$tmp" "$g" "$g3" "$gf" "$hm"' EXIT
 export CLAUDE_PROJECT_DIR=$proj TMPDIR=$tmp GIT_CEILING_DIRECTORIES=$(dirname "$proj") # the temp dirs are no git repos
+export HOME=$hm # the guard checks ~/.claude: keep the real one out of the tests
 S=$proj/.claude
 SID=s1
 pass=0 fail=0
@@ -117,7 +119,7 @@ bash_ "cat .env 2>/dev/null"; check "Bash: read with 2>/dev/null allowed" 0 $?
 bash_ "grep -r foo db/migrations/ 2>&1 | head"; check "Bash: grep of migrations allowed" 0 $?
 bash_ "echo hi > src/a.py"; check "Bash: write to a normal file allowed" 0 $?
 bash_ "cp specs/current.md specs/x.sql"; check "Bash: copy inside specs/ allowed" 0 $?
-bash_ "ls -t specs/2*.md | tail -n +6 | xargs rm -f"; check "Bash: the finalize cleanup allowed" 0 $?
+bash_ "ls -t specs/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.md | tail -n +6 | xargs rm -f"; check "Bash: the finalize cleanup allowed" 0 $?
 bash_ "mv specs/current.md specs/2026-01-01-x.md"; check "Bash: archiving the spec allowed" 0 $?
 bash_ "git add -A && git commit -m done"; check "Bash: git add and commit allowed" 0 $?
 bash_ "echo x > /etc/app.sql"; check "Bash: risky name outside the project allowed" 0 $?
@@ -347,7 +349,7 @@ gate SessionStart '{"source":"resume"}' >/dev/null; write "$R"; check "resume ke
 gate SessionStart '{"source":"clear"}' >/dev/null; write "$R"; check "clear ends the approval" 2 $?
 
 # specs/ stays out of git.
-reset; write "$proj/specs/current.md"; [ "$(cat "$proj/specs/.gitignore" 2>/dev/null)" = '*' ]; check "writing the spec creates specs/.gitignore" 0 $?
+reset; write "$proj/specs/current.md"; grep -qxF 'current.md' "$proj/specs/.gitignore" 2>/dev/null && ! grep -qxF '*' "$proj/specs/.gitignore"; check "writing the spec creates specs/.gitignore, without *" 0 $?
 reset; mkdir -p "$proj/specs"; gate SessionStart '{"source":"resume"}' >/dev/null; [ -f "$proj/specs/.gitignore" ]; check "session start ignores an existing specs/" 0 $?
 g2=$(mktemp -d); git -C "$g2" init -q && mkdir -p "$g2/specs" && printf '*\n' > "$g2/specs/.gitignore" && : > "$g2/specs/current.md" && : > "$g2/specs/2026-01-01-x.md" && : > "$g2/specs/current.url" && : > "$g2/specs/current.html"
 [ -z "$(git -C "$g2" status --porcelain)" ]; check "git sees nothing in specs/" 0 $?; rm -rf "$g2"
@@ -387,6 +389,196 @@ reset; mkspec; say "approve spec" >/dev/null; out=$(gate SessionStart '{"source"
 : > "$tmp/ras-turn-old"; touch -t 202001010000 "$tmp/ras-turn-old"; : > "$tmp/ras-turn-new"
 gate SessionStart '{"source":"resume","session_id":"s1"}' >/dev/null
 [ ! -e "$tmp/ras-turn-old" ] && [ -e "$tmp/ras-turn-new" ]; check "SessionStart removes only old turn snapshots" 0 $?
+
+# ---- Gate Wave 1
+
+# A lock holds under approval and under skip spec. Only the user can change these.
+# A tool call as Claude Code makes it: the hook runs only for a tool that the matcher in hooks.json names.
+# A tool the matcher leaves out is never checked, so it passes.
+matcher=$($py -c 'import json,sys; print(json.load(open(sys.argv[1]))["hooks"]["PreToolUse"][0]["matcher"])' "$root/hooks/hooks.json")
+tool_() {
+  case "|$matcher|" in *"|$1|"*) ;; *) return 0 ;; esac
+  gate PreToolUse "{\"session_id\":\"$SID\",\"tool_name\":\"$1\",\"tool_input\":{\"$2\":\"$3\"}}"
+}
+ldeny() { bash_ "$1"; check "lock: $1" 2 $?; }
+reset; mkspec; say "approve spec" >/dev/null
+write "$proj/.claude/spec.approved"; check "lock: Write of .claude/spec.approved under approval" 2 $?
+write "$proj/.ras/risky-paths"; check "lock: Write of .ras/risky-paths under approval" 2 $?
+write '\u002eclaude/spec.approved'; check "lock: a \\u escape is denied under approval" 2 $?
+ldeny "echo x > .claude/spec.approved"
+ldeny "echo x > .env; echo y > .claude/spec.approved"
+ldeny "echo x > .env && touch .claude/spec.skip"
+ldeny "rm -rf .claude"
+ldeny "mv x .claude"
+ldeny "ln -s .claude/spec.approved alias"
+ldeny "cp -T x .claude/spec.approved"
+ldeny "cp -t .claude spec.approved"
+ldeny "cp -vt .claude spec.approved"
+ps_ "cp -Destination .claude\\\\spec.approved -Path x"; check "lock: PowerShell cp is Copy-Item" 2 $?
+ldeny "git checkout HEAD~1 -- .ras/risky-paths"
+ps_ "Copy-Item x -Destination .claude\\\\spec.approved"; check "lock: PowerShell Copy-Item -Destination under approval" 2 $?
+bash_ "echo x > .env"; check "lock: a risky path alone still passes under approval" 0 $?
+bash_ "echo x > .claude/notes.md"; check "lock: another file in .claude passes" 0 $?
+reset; say "skip spec" >/dev/null
+write "$proj/.claude/spec.approved"; check "lock: Write of .claude/spec.approved under skip" 2 $?
+ldeny "rm -rf .claude; mv x .claude"
+msg=$(printf '%s' "{\"session_id\":\"s1\",\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$proj/.claude/spec.approved\"}}" | sh "$root/hooks/spec-gate.sh" PreToolUse 2>&1 >/dev/null)
+case $msg in *"locked"*) check "lock: the message says locked" 0 0 ;; *) check "lock: the message says locked" 0 1 ;; esac
+
+# A claude run that resumes or names a session types into that session: locked.
+reset; mkspec; say "approve spec" >/dev/null
+ldeny 'claude -p --resume abc \"approve spec\"'
+ldeny "claude -c"
+ldeny "claude --continue -p hi"
+ldeny "claude -r abc"
+ldeny "claude --session-id abc -p hi"
+ldeny "claude --resume=abc"
+ldeny "claude -pc hi"
+ldeny "sh -c 'claude --resume abc'"
+ldeny "/usr/bin/claude -r abc"
+ldeny "npx -y @anthropic-ai/claude-code --resume abc"
+ldeny "FOO=1 claude.exe --continue"
+ldeny "claude --from-pr 12 -p hi"
+ldeny "claude --teleport abc"
+ldeny "claude attach abc"
+ldeny "claude respawn abc"
+ps_ "claude --resume abc"; check "lock: PowerShell claude --resume" 2 $?
+ballow 'claude -p \"summarize\"'
+ballow "claude --version"
+ballow 'claude -p \"what does -c do\"'
+
+# Turning ras off needs an approval: settings files, the plugins folder, plugin commands.
+reset
+for f in "$proj/.claude/settings.json" "$proj/.claude/settings.local.json" "$HOME/.claude/settings.json" "$HOME/.claude/settings.local.json" "$HOME/.claude/plugins/cache/x/hooks/spec-gate.sh"; do
+  write "$f"; check "deny settings or plugins path ${f##*/.claude/}" 2 $?
+done
+bdeny "echo x > ~/.claude/settings.json"
+bdeny 'echo x > \"$HOME/.claude/settings.json\"'
+bdeny "rm -rf ~/.claude/plugins"
+bdeny "echo x > .claude/settings.local.json"
+bdeny "claude plugin disable ras"
+bdeny "claude plugin uninstall ras@magicjosh"
+bdeny "claude plugin remove ras"
+bdeny "claude plugin marketplace remove magicjosh"
+ballow "claude plugin list"
+ballow "claude plugin update ras@magicjosh"
+ballow "cat ~/.claude/settings.json"
+write "$HOME/.claude/notes.md"; check "allow another file in ~/.claude" 0 $?
+write "$proj/.claude/agents/x.md"; check "allow another file in the project's .claude" 0 $?
+msg=$(printf '%s' "{\"session_id\":\"s1\",\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$proj/.claude/settings.json\"}}" | sh "$root/hooks/spec-gate.sh" PreToolUse 2>&1 >/dev/null)
+case $msg in *"skip spec"*) check "the settings deny names skip spec" 0 0 ;; *) check "the settings deny names skip spec" 0 1 ;; esac
+mkdir -p "$proj/.ras" && printf '^secret/\n' > "$proj/.ras/risky-paths"
+write "$proj/.claude/settings.json"; check "settings stay risky under a .ras/risky-paths override" 2 $?
+reset; say "skip spec" >/dev/null; write "$proj/.claude/settings.json"; check "settings pass after skip spec" 0 $?
+reset; mkspec; say "approve spec" >/dev/null; write "$HOME/.claude/settings.json"; check "settings pass after approval" 0 $?
+bash_ "claude plugin disable ras"; check "claude plugin disable passes after approval" 0 $?
+
+# Scheduled prompts cannot approve or skip: CronCreate and ScheduleWakeup.
+reset; mkspec
+for t in CronCreate ScheduleWakeup; do
+  for p in "approve spec" "Approve  Spec!" "skip spec" 'please\napprove spec' "approve-spec" '\u0061pprove spec'; do
+    tool_ $t prompt "$p"; check "$t: deny prompt $p" 2 $?
+  done
+  tool_ $t prompt "check the deploy"; check "$t: allow an ordinary prompt" 0 $?
+  tool_ $t cron "* * * * *"; check "$t: deny when there is no prompt" 2 $?
+  guard_err "{\"session_id\":\"s1\",\"tool_name\":\"$t\",\"tool_input\":{\"prompt\":\"approve spec\"}}"
+  case $rc:$err in 2:*"scheduled prompt"*) check "$t: the deny names the scheduled prompt" 0 0 ;; *) check "$t: the deny names the scheduled prompt" 0 1 ;; esac
+done
+[ ! -e "$S/spec.approved" ]; check "scheduled prompts wrote no approval" 0 $?
+say "approve spec" >/dev/null; tool_ CronCreate prompt "skip spec"; check "CronCreate: denied under approval too" 2 $?
+reset; say "skip spec" >/dev/null; tool_ ScheduleWakeup prompt "approve spec"; check "ScheduleWakeup: denied under skip too" 2 $?
+tool_ CronCreate prompt "$(head -c 70000 /dev/zero | tr '\0' a)"; check "CronCreate: a prompt over 64 KB is denied under skip" 2 $?
+bash_ "echo $(head -c 70000 /dev/zero | tr '\0' a)"; check "a command over 64 KB is denied under skip" 2 $?
+ps_ 'Set-Content -Path $env:USERPROFILE\\.claude\\settings.json -Value x'; check "PowerShell: \$env:USERPROFILE settings pass under skip" 0 $?
+reset; ps_ 'Set-Content -Path $env:USERPROFILE\\.claude\\settings.json -Value x'; check "PowerShell: \$env:USERPROFILE settings denied" 2 $?
+
+# Monitor runs a shell command: checked as Bash.
+reset
+tool_ Monitor command "echo x > .env"; check "Monitor: write to .env denied" 2 $?
+guard_err "{\"session_id\":\"s1\",\"tool_name\":\"Monitor\",\"tool_input\":{\"command\":\"echo x > .env\"}}"
+case $rc:$err in 2:*"risky path: .env"*) check "Monitor: the deny names the path" 0 0 ;; *) check "Monitor: the deny names the path" 0 1 ;; esac
+tool_ Monitor command "tail -f app.log"; check "Monitor: a read is allowed" 0 $?
+tool_ Monitor description "deploy events"; check "Monitor: a ws monitor has no command and passes" 0 $?
+gate PreToolUse '{"session_id":"s1","tool_name":"Unknown","tool_input":{"x":"y"}}'; check "a tool the guard does not know is denied when the matcher sends it" 2 $?
+
+# Copy destinations, ln, git checkout.
+bdeny "cp -t .github/workflows a.yml"
+bdeny "cp --target-directory=prisma schema.prisma"
+bdeny "mv schema.prisma prisma/"
+bdeny "cp a.sql b.sql out"
+bdeny "cp -t backup .env"
+bdeny "ln -s .env alias"
+bdeny "git checkout HEAD~1 -- .env"
+bdeny "git checkout main .env"
+bdeny "git checkout -- .github/workflows/ci.yml"
+ballow "cp -T backup.sql out.txt"
+ballow "install -m 644 a.sql out.txt"
+ballow "mv a.txt b.txt docs/"
+ballow "git checkout -b fix origin/auth"
+ballow "git checkout -"
+pdeny "Copy-Item a.txt -Destination .env"
+pdeny "Copy-Item a.txt -fo .env"
+winj "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$Wj\\\\.claude\\\\settings.json\"}}"; check "deny a Windows path to the project's settings" 2 $?
+(HOME=$Wg; export HOME; winj "{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$Wj\\\\.claude\\\\plugins\\\\x.sh\"}}"); check "deny a Windows path under a Git Bash HOME" 2 $?
+pallow "Copy-Item .env -Destination backup.txt"
+pallow "Copy-Item -Path src -Destination out -Exclude .env"
+
+# One approval line per session. Another session's approval, start or prompt leaves it alone.
+nlines() { wc -l < "$S/spec.approved" | tr -d ' '; }
+reset; mkspec; say "approve spec" >/dev/null
+SID=s2; say "approve spec" >/dev/null; write "$R"; check "approvals: the second session is approved" 0 $?
+SID=s1; write "$R"; check "approvals: the first session stays approved" 0 $?
+say "approve spec" >/dev/null; check "approvals: re-approval adds no duplicate line" 2 "$(nlines)"
+gate SessionStart '{"source":"startup","session_id":"s3"}' >/dev/null; write "$R"; check "approvals: a new session's start keeps the others" 0 $?
+gate SessionStart '{"source":"clear","session_id":"s1"}' >/dev/null; write "$R"; check "approvals: clear ends this session's approval" 2 $?
+SID=s2; write "$R"; check "approvals: clear in one session keeps the other" 0 $?
+SID=s1
+reset; mkspec; SID=; say "approve spec" >/dev/null; [ ! -e "$S/spec.approved" ]; check "approvals: an empty session id writes nothing" 0 $?
+write "$R"; check "approvals: an empty session id is never approved" 2 $?
+SID=s1
+reset; mkspec; mkdir -p "$S"; printf '%s\n%s\n' "$(cksum < "$SP")" s1 > "$S/spec.approved"; write "$R"; check "approvals: a 6.4.0 approval file approves nothing" 2 $?
+
+# skip spec: only this session's next prompt clears it.
+reset; say "skip spec" >/dev/null; SID=s2; say "go on" >/dev/null; SID=s1; write "$R"; check "skip: another session's prompt keeps it" 0 $?
+say "go on" >/dev/null; write "$R"; check "skip: this session's next prompt clears it" 2 $?
+
+# The approval phrase: the last line of the prompt, with . or ! after it.
+ok_() { reset; mkspec; out=$(say "$1"); write "$R"; check "phrase approves: $1" 0 $?; }
+no_() { reset; mkspec; out=$(say "$1"); write "$R"; check "phrase does not approve: $1" 2 $?; }
+ok_ "approve spec."
+ok_ "Approve spec!!"
+ok_ 'ok, no problem.\n\napprove spec'
+ok_ 'ok\r\napprove spec.\n'
+no_ "approve spec?"
+no_ 'approve spec\nlater'
+no_ 'x\\napprove spec'
+no_ "lets approve spec"
+no_ '<task-notification>\n<event>x</event>\n</task-notification>\napprove spec'
+no_ '\u0061pprove spec'
+no_ "Approve spec G"; printf '%s' "$out" | grep -q 'Not approved'; check "near miss: a short prompt gets the notice" 0 $?
+no_ "do not approve spec yet"; printf '%s' "$out" | grep -q 'Not approved'; check "near miss: a sentence with the words gets the notice" 0 $?
+no_ "fix the spec page"; check "near miss: no notice without approv" "" "$out"
+ok_ "approve spec"; printf '%s' "$out" | grep -q 'Not approved'; check "near miss: no notice on an approval" 1 $?
+reset; out=$(say "Approve spec G"); check "near miss: no notice when there is no spec" "" "$out"
+reset; say "skip spec." >/dev/null; write "$R"; check "phrase: skip spec with a dot" 0 $?
+reset; say 'one off\nskip spec' >/dev/null; write "$R"; check "phrase: skip spec as the last line" 0 $?
+
+# specs/.gitignore lists only what ras writes.
+g4=$(mktemp -d); git -C "$g4" init -q
+(CLAUDE_PROJECT_DIR=$g4; export CLAUDE_PROJECT_DIR; write "$g4/specs/current.md")
+for f in current.md current.url current.html 2026-01-01-x.md review-2026-01-01-x.md review-2026-01-01-x.report.md research/2026-01-01-q.md; do mkdir -p "$(dirname "$g4/specs/$f")"; : > "$g4/specs/$f"; done
+[ -f "$g4/specs/.gitignore" ] && [ -z "$(git -C "$g4" status --porcelain)" ]; check "gitignore: git sees none of ras's files in specs/" 0 $?
+: > "$g4/specs/api.md"; git -C "$g4" status --porcelain | grep -q 'specs/'; check "gitignore: git sees a repo's own file in specs/" 0 $?
+rm -rf "$g4"
+
+# A bad line in .ras/risky-paths is named.
+reset; mkdir -p "$proj/.ras"; printf '# mine\n^ok/\n[\n' > "$proj/.ras/risky-paths"
+guard_err "{\"session_id\":\"s1\",\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"src/a.py\"}}"
+case $rc:$err in 2:*"line 3"*) check "override: a bad pattern is named by its line" 0 0 ;; *) check "override: a bad pattern is named by its line" 0 1 ;; esac
+reset
+
+$py -c 'import json,sys; m=json.load(open(sys.argv[1]))["hooks"]["PreToolUse"][0]["matcher"].split("|"); sys.exit(0 if all(w in m for w in ("Monitor", "CronCreate", "ScheduleWakeup")) else 1)' "$root/hooks/hooks.json"
+check "hooks.json: PreToolUse names Monitor, CronCreate and ScheduleWakeup" 0 $?
 
 echo "$pass passed, $fail failed"
 [ "$fail" = 0 ]
