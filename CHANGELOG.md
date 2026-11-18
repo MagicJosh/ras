@@ -5,6 +5,7 @@
 - The Stop hook reminds you once of `/scope-review` when `finalize` has archived the spec you approved in this session. It is a message to the user and costs no extra turn: a hook cannot start a user-only skill. A turn that must end with a Decisions section is still blocked first, and the reminder comes on the retry.
 - Session start names a `specs/current.md` that is not approved in this session, because `approve spec` would approve that file. The sentence is fixed and holds no text from the spec.
 - Session start removes turn snapshots (`ras-turn-*` in the temp folder) that are more than a day old. They were never deleted before.
+- The prompt, stop and session-start hooks read their JSON in one `awk` process (`hooks/event.awk`) and no longer start a `grep`, `sed` or `tr` per field. On Windows, where a process start costs about 0.1 s, a call went from about 0.9 s to 0.4 s for the prompt and stop hooks and from 0.45 s to 0.24 s for session start. The old and the new script gave the same output, exit code and state files on 47 inputs, on Windows and on Linux.
 
 ## 6.4.0
 

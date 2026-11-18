@@ -6,7 +6,8 @@
 # The spec lives outside .claude/ because Claude Code always prompts for writes to .claude/.
 # Approval state stays in .claude/, so the agent cannot forge it without a prompt.
 # A guard rail for the agent, not a sandbox.
-# PreToolUse needs sh, awk and cksum (hooks/guard.awk does the checking), and git for the folder check of rm and mv. The other events also use grep, sed, tr and git.
+# PreToolUse needs sh, awk and cksum (hooks/guard.awk does the checking), and git for the folder check of rm and mv.
+# The other events read their JSON with hooks/event.awk, and also use grep, sed, tr, find and git.
 # Usage: spec-gate.sh <hook event>, JSON on stdin.
 set -eu
 event=${1:-}
@@ -59,11 +60,12 @@ skipped() {
   [ "$s" = "$sid" ]
 }
 
+here=${0%/*}
+[ "$here" != "$0" ] || here=${0%\\*} # a Windows path has backslashes
+[ "$here" != "$0" ] || here=.
+
 if [ "$event" = PreToolUse ]; then
   # One awk process reads the hook JSON and prints the session id, then a verdict (guard.awk).
-  here=${0%/*}
-  [ "$here" != "$0" ] || here=${0%\\*} # a Windows path has backslashes
-  [ "$here" != "$0" ] || here=.
   ovr=
   if [ -e "$proj/.ras/risky-paths" ]; then ovr=$proj/.ras/risky-paths; fi
   out=$(LC_ALL=C RAS_RISKY=$ovr awk -f "$here/guard.awk") || die "the awk guard failed; if .ras/risky-paths exists, check its patterns"
@@ -82,11 +84,18 @@ if [ "$event" = PreToolUse ]; then
   deny "${v#risky }"
 fi
 
-input=$(cat)
-# First string value of a JSON key. An escaped \" inside a value cannot match a key.
-field() { printf '%s' "$input" | grep -oE '"('"$1"')"[[:space:]]*:[[:space:]]*"([^"\\]|\\.)*"' |
-  sed -n '1{s/^"[a-z_]*"[[:space:]]*:[[:space:]]*"//;s/"$//;p;}'; }
-sid=$(field session_id)
+# One awk process reads the event and prints eight lines (event.awk). A process start costs about
+# 0.1 s on Windows, and these events run on every prompt and every reply.
+ev=$(LC_ALL=C awk -f "$here/event.awk") || die "the awk event reader failed"
+{
+  IFS= read -r sid; IFS= read -r safe; IFS= read -r src; IFS= read -r agent
+  IFS= read -r active; IFS= read -r p; IFS= read -r asks; IFS= read -r decisions
+} <<EOF
+$ev
+EOF
+# The file that holds this turn's starting snapshot. Empty when there is no session id.
+t=
+[ -z "$safe" ] || t=${TMPDIR:-/tmp}/ras-turn-$safe
 
 # Changed text files, one line each: git numstat for tracked files, git --eol for untracked ones.
 # Binary files are left out: numstat shows them as "-", --eol as w/-text.
@@ -94,14 +103,12 @@ snap() {
   git -C "$proj" diff HEAD --numstat -- . 2>/dev/null | grep -v '^-' || :
   git -C "$proj" ls-files -o --exclude-standard --eol 2>/dev/null | grep -v 'w/-text' || :
 }
-# The file that holds this turn's starting snapshot. Empty when there is no session id.
-turn() { t=$(printf '%s' "$sid" | tr -cd 'A-Za-z0-9_-'); [ -z "$t" ] || echo "${TMPDIR:-/tmp}/ras-turn-$t"; }
 
 case $event in
 SessionStart)
   [ -d "$proj/specs" ] && ign
   # A new or cleared session starts unapproved. Resume and compact keep the approval.
-  case $(field source) in startup | clear | '') rm -f "$d/spec.approved" "$d/spec.skip" ;; esac
+  case $src in startup | clear | '') rm -f "$d/spec.approved" "$d/spec.skip" ;; esac
   # Turn snapshots of sessions that ended more than a day ago. Best effort.
   find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'ras-turn-*' -mtime +0 -exec rm -f {} + 2>/dev/null || :
   # A spec left from earlier work: say so, because `approve spec` would approve that file. A fixed sentence, never spec text.
@@ -109,8 +116,7 @@ SessionStart)
   if [ -f "$spec" ] && ! approved; then old=' specs/current.md already holds a spec that is not approved in this session. Tell the user it is there before you start work on a spec.'; fi
   printf '%s%s%s\n' '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"ras plugin. Work normally and keep diffs small.\nThe user can run /spec (or /ras:spec) for a plan: the spec skill asks the open questions, writes specs/current.md and waits for `approve spec`.' "$old" '\nRisky paths (CI, env files, migrations, SQL, infra, auth) are locked until a spec is approved. If a hook denies an edit, load spec.\nFor a failure with an unknown cause, load diagnose. For a question that needs facts from outside the repo, such as a library choice or breaking changes between versions, load research before you answer. When a change touches auth, permissions, secrets, payments, personal data or deletes, load security-check.\nEnd every reply that changed code with a short Decisions section: choices you made that the user did not specify, and what you skipped or did not check, or none."}}' ;;
 UserPromptSubmit)
-  if printf '%s' "$input" | grep -qE '"agent_id"[[:space:]]*:'; then allow; fi
-  p=$(field prompt | tr 'A-Z' 'a-z' | sed -E 's/^(\\[nrt]|[[:space:]])+//; s/(\\[nrt]|[[:space:]])+$//')
+  if [ "$agent" = 1 ]; then allow; fi
   [ "$p" = "skip spec" ] || rm -f "$d/spec.skip"
   case $p in
   "approve spec")
@@ -126,14 +132,12 @@ UserPromptSubmit)
     printf '%s\n' "$sid" > "$d/spec.skip" ;;
   esac
   # Remember what was already changed, so Stop can tell what this turn changed.
-  t=$(turn)
   if [ -n "$t" ]; then
     { git -C "$proj" rev-parse --is-inside-work-tree >/dev/null && snap > "$t"; } 2>/dev/null || :
   fi ;;
 Stop)
-  last=$(field last_assistant_message | tr 'A-Z' 'a-z')
   # When the agent asks for approval, show the user the spec's Decisions section.
-  if [ -f "$spec" ] && ! approved && printf '%s' "$last" | grep -q 'approve spec'; then
+  if [ "$asks" = 1 ] && [ -f "$spec" ] && ! approved; then
     dec=$(sed -n '/^## Decisions/,/^## /{/^## /!p;}' "$spec" | sed '/^[[:space:]]*$/d')
     [ -n "$dec" ] || dec='None written. Ask the agent which choices the spec makes before you approve.'
     msg=$(printf 'Decisions in specs/current.md:\n%s' "$dec" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\t' ' ' | awk 'NR > 1 { printf "\\n" } { printf "%s", $0 }')
@@ -153,9 +157,8 @@ Stop)
     allow
   }
   # Fallback: the turn changed files and the reply has no Decisions heading. Ask once.
-  if printf '%s' "$input" | grep -qE '"stop_hook_active"[[:space:]]*:[[:space:]]*true'; then quiet; fi
-  printf '%s' "$last" | grep -qE '(^|\\n)[[:space:]]*([-*+][[:space:]]+)?(#+[[:space:]]*|\*\*)?decisions' && quiet
-  t=$(turn)
+  if [ "$active" = 1 ]; then quiet; fi
+  if [ "$decisions" = 1 ]; then quiet; fi
   [ -n "$t" ] && [ -f "$t" ] || quiet
   git -C "$proj" rev-parse --is-inside-work-tree >/dev/null 2>&1 || quiet
   n=$(snap | grep -vxFc -f "$t" || :)
